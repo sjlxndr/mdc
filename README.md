@@ -1,4 +1,4 @@
-# Markdown Converter (MDCH)
+# Markdown Converter (MDC)
 
 A single-file, browser-based Markdown editor and HTML converter with live preview, dark mode, and export options.
 
