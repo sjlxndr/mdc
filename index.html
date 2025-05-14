@@ -225,6 +225,10 @@ function footnotes() {
 }
   </script>
   <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    
     :root {
       --primary-color: #3498db;
       --background-color: #f8f9fa;
@@ -243,8 +247,10 @@ function footnotes() {
     
     .container {
       max-width: 1200px;
+      width: 100%;
       margin: 0 auto;
       padding: 20px;
+      box-sizing: border-box;
     }
     
     .editor-container {
@@ -253,8 +259,7 @@ function footnotes() {
       min-height: 400px;
       position: relative;
       justify-content: center;
-      max-width: 100%;
-      overflow-x: hidden;
+      width: 100%;
     }
     
     .editor-pane, .preview-pane {
