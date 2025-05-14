@@ -24,13 +24,13 @@ You can use Markdown Converter in multiple ways:
 
 1. **Web Version**: Visit the hosted version at [mdc.lxndr.net](mdc.lxndr.net)
 2. **PWA Installation**: Click the install button in your browser's address bar to install as a Progressive Web App
-3. **Local File**: Download the `index.html` file and open it in any modern web browser
-4. **Self-Host**: Place the files on your own web server
+3. **Local File**: Download the [`index.html`](https://raw.githubusercontent.com/sjlxndr/mdc/refs/heads/main/index.html) file and open it in any modern web browser
+4. **Self-Host**: Place [the files](https://github.com/sjlxndr/mdc) on your own web server
 
 ### Basic Operation
 
-1. Type Markdown in the left panel
-2. See the rendered HTML in the right panel
+1. Type Markdown text in the left panel
+2. See the rendered HTML in the right panel (or Preview tab, on mobile)
 3. Use the toolbar buttons to switch between light/dark mode
 4. Export your document as HTML or Markdown
 5. Copy the formatted HTML to paste into other applications
@@ -42,7 +42,8 @@ You can use Markdown Converter in multiple ways:
 
 Markdown Converter is fully keyboard accessible:
 
-- **Global Shortcuts**:
+#### Global Shortcuts
+
   - <kbd>Alt</kbd> + <kbd>E</kbd>: Focus the editor
   - <kbd>Alt</kbd> + <kbd>P</kbd>: Focus the preview
   - <kbd>Alt</kbd> + <kbd>S</kbd>: Focus the splitter
@@ -53,7 +54,8 @@ Markdown Converter is fully keyboard accessible:
   - <kbd>Alt</kbd> + <kbd>H</kbd>: Open help dialog
   - <kbd>Alt</kbd> + <kbd>T</kbd>: Toggle light/dark theme
 
-- **Splitter Controls** (when focused):
+#### Splitter Controls (when focused)
+
   - <kbd>←</kbd>: Decrease editor width
   - <kbd>→</kbd>: Increase editor width
   - <kbd>↑</kbd>: Decrease editor width with bigger steps
@@ -66,19 +68,15 @@ Markdown Converter is fully keyboard accessible:
 
 Markdown Converter supports footnotes with the following syntax:
 
-```markdown
 Here is text with a footnote reference[^1].
 
 [^1]: This is the footnote content.
-```
 
-For multi-paragraph footnotes, indent the additional paragraphs with 4 spaces:
+For multi-paragraph footnotes, indent the additional paragraphs with 4 spaces[^2].
 
-```markdown
-[^1]: First paragraph of the footnote.
-    
+[^2]: First paragraph of the footnote.
+
     Second paragraph of the footnote.
-```
 
 ### Progressive Web App Features
 
