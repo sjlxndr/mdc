@@ -1068,27 +1068,7 @@ function footnotes() {
             </div>
           </div>
         </header>
-        <textarea id="markdown-editor" aria-label="Markdown editor" placeholder="Type or paste your Markdown here...
-
-## Example Heading
-
-Write some **bold text** or *italic text*.
-
-- List item 1
-- List item 2
-
-[Link example](https://example.com)
-
-```javascript
-console.log('Code block example');
-```
-
-> Blockquote example
-
-| Table | Header |
-|-------|--------|
-| Cell  | Cell   |
-"></textarea>
+        <textarea id="markdown-editor" aria-label="Markdown editor" placeholder="Type or paste your Markdown here..."></textarea>
       </div>
       <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" aria-valuenow="50" aria-controls="markdown-editor html-preview" aria-label="Resize panels" tabindex="0">
         <div class="splitter-handle"></div>
@@ -2055,89 +2035,30 @@ Generated content using:
         URL.revokeObjectURL(url);
       }
       
-      // Load sample markdown
+      // Load README.md as sample
       function loadSample() {
-        markdownEditor.value = `# Markdown Sample Document
-
-## Introduction
-
-This is a sample Markdown document showing various formatting options.
-
-## Formatting
-
-**Bold text** and *italic text* are easy to create. You can also use ***bold and italic*** together.
-
-## Lists
-
-### Unordered List
-
-- Item 1
-- Item 2
-    - Nested item 1
-    - Nested item 2
-- Item 3
-
-### Ordered List
-
-1. First item
-2. Second item
-3. Third item
-
-## Code
-
-Inline \`code\` can be inserted within text.
-
-\`\`\`javascript
-// Code block
-function greet(name) {
-  console.log(\`Hello, \${name}!\`);
-}
-
-greet('World');
-\`\`\`
-
-## Tables
-
-| Header 1 | Header 2 | Header 3 |
-|----------|----------|----------|
-| Row 1    | Data     | Data     |
-| Row 2    | Data     | Data     |
-| Row 3    | Data     | Data     |
-
-## Blockquotes
-
-> This is a blockquote.
-> 
-> It can span multiple lines.
-
-## Links and Images
-
-[Visit GitHub](https://www.github.com)
-
-![Example Image](https://live.staticflickr.com/151/357921208_267bdca976.jpg)
-
-## Footnotes
-
-You can add footnotes to your document for references or additional information[^1].
-
-Here's another sentence with a footnote[^2].
-
-[^1]: This is the first footnote.
-
-[^2]: This is the second footnote with multiple paragraphs.
-    
-    Indent subsequent paragraphs by 4 spaces to include them in the footnote.
-
-## Task Lists
-
-- [x] Completed task
-- [ ] Incomplete task
-- [ ] Another task
-
-## Horizontal Rule
-
----`;
-        updatePreview();
+        // Show loading indicator in the editor
+        markdownEditor.value = "Loading README.md...";
+        
+        // Fetch README.md from the repository
+        fetch('./README.md')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Failed to load README.md: ${response.status} ${response.statusText}`);
+            }
+            return response.text();
+          })
+          .then(content => {
+            // Set the content in the editor
+            markdownEditor.value = content;
+            // Update preview
+            updatePreview();
+          })
+          .catch(error => {
+            console.error('Error loading README.md:', error);
+            markdownEditor.value = `# Error Loading Sample\n\nUnable to load README.md: ${error.message}\n\nPlease try again later.`;
+            updatePreview();
+          });
       }
       
       // Toggle dark/light theme and save preference
