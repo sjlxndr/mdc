@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background - Dark Blue -->
+  <rect width="192" height="192" rx="38" ry="38" fill="#243043"/>
+  
+  <!-- Foreground - MD Text in Orange -->
+  <text x="96" y="107" font-family="Merriweather, serif" font-size="75" font-weight="900" text-anchor="middle" fill="#FF8128" dominant-baseline="middle">MD</text>
+  
+  <!-- Optional Shadow (gentle inner shadow for depth) -->
+  <rect width="192" height="192" rx="38" ry="38" fill="none" style="filter: drop-shadow(0px 0px 6px rgba(0,0,0,0.2))"/>
+</svg>

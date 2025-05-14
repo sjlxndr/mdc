@@ -1,4 +1,4 @@
-# Markdown Converter (MDCH)
+# Markdown Converter (MDC)
 
 A single-file, browser-based Markdown editor and HTML converter with live preview, dark mode, and export options.
 
@@ -63,7 +63,7 @@ When copying HTML content, Markdown Converter creates a clean version with appro
 
 MIT License
 
-Copyright (c) 2025 MDCH
+Copyright (c) 2025 Stephen Alexander
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

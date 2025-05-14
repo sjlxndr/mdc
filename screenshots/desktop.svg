@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- Background -->
+  <rect width="1280" height="720" fill="#f8f9fa"/>
+  
+  <!-- App Container -->
+  <rect x="40" y="40" width="1200" height="640" rx="8" ry="8" fill="white" stroke="#dee2e6" stroke-width="2"/>
+  
+  <!-- Toolbar -->
+  <rect x="40" y="40" width="1200" height="60" rx="8" ry="8" fill="#f1f3f5"/>
+  
+  <!-- Buttons -->
+  <rect x="60" y="55" width="80" height="30" rx="4" ry="4" fill="#3498db"/>
+  <rect x="150" y="55" width="100" height="30" rx="4" ry="4" fill="#3498db"/>
+  <rect x="260" y="55" width="30" height="30" rx="4" ry="4" fill="#3498db"/>
+  
+  <!-- Theme Switch -->
+  <rect x="1140" y="55" width="60" height="30" rx="15" ry="15" fill="#333"/>
+  <circle cx="1180" cy="70" r="12" fill="white"/>
+  
+  <!-- Split Panes -->
+  <rect x="40" y="100" width="595" height="540" fill="white"/>
+  <rect x="645" y="100" width="595" height="540" fill="white"/>
+  
+  <!-- Splitter -->
+  <rect x="635" y="100" width="10" height="540" fill="#dee2e6"/>
+  
+  <!-- Editor Content (Lines) -->
+  <g fill="#555">
+    <rect x="60" y="120" width="300" height="5" rx="2" ry="2"/>
+    <rect x="60" y="140" width="400" height="5" rx="2" ry="2"/>
+    <rect x="60" y="160" width="350" height="5" rx="2" ry="2"/>
+    <rect x="60" y="180" width="500" height="5" rx="2" ry="2"/>
+    <rect x="60" y="200" width="420" height="5" rx="2" ry="2"/>
+    <rect x="60" y="220" width="380" height="5" rx="2" ry="2"/>
+    <rect x="60" y="240" width="480" height="5" rx="2" ry="2"/>
+    <rect x="60" y="260" width="400" height="5" rx="2" ry="2"/>
+    <rect x="60" y="280" width="520" height="5" rx="2" ry="2"/>
+    <rect x="60" y="300" width="450" height="5" rx="2" ry="2"/>
+  </g>
+  
+  <!-- Preview Content -->
+  <g fill="#333">
+    <rect x="665" y="120" width="200" height="15" rx="2" ry="2"/>
+    <rect x="665" y="150" width="400" height="10" rx="2" ry="2"/>
+    <rect x="665" y="170" width="450" height="10" rx="2" ry="2"/>
+    <rect x="665" y="200" width="150" height="10" rx="2" ry="2"/>
+    <rect x="685" y="220" width="10" height="10" rx="5" ry="5"/>
+    <rect x="705" y="220" width="300" height="10" rx="2" ry="2"/>
+    <rect x="685" y="240" width="10" height="10" rx="5" ry="5"/>
+    <rect x="705" y="240" width="250" height="10" rx="2" ry="2"/>
+    <rect x="665" y="270" width="300" height="10" rx="2" ry="2"/>
+    <rect x="665" y="290" width="450" height="10" rx="2" ry="2"/>
+  </g>
+  
+  <!-- Action Buttons -->
+  <g>
+    <rect x="40" y="660" width="80" height="30" rx="4" ry="4" fill="#3498db"/>
+    <rect x="130" y="660" width="150" height="30" rx="4" ry="4" fill="#3498db"/>
+    <rect x="290" y="660" width="120" height="30" rx="4" ry="4" fill="#3498db"/>
+    <rect x="420" y="660" width="150" height="30" rx="4" ry="4" fill="#3498db"/>
+    <rect x="580" y="660" width="200" height="30" rx="4" ry="4" fill="white" stroke="#dee2e6" stroke-width="2"/>
+  </g>
+</svg>
