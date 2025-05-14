@@ -1,3 +1,6 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
 <!--
 Markdown Converter - A browser-based Markdown editor with HTML conversion and live preview
 Copyright (c) 2025 Stephen Alexander
@@ -7,9 +10,6 @@ This application uses:
 - Showdown (v2.1.0) - MIT License - https://github.com/showdownjs/showdown 
 - DOMPurify (v3.2.5) - Dual-licensed under Apache License 2.0 and Mozilla Public License 2.0 - https://github.com/cure53/DOMPurify
 -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="A browser-based Markdown editor with HTML conversion and live preview">
@@ -37,18 +37,28 @@ function footnotes() {
     {
       type: 'lang',
       filter: function(text) {
-        // First, let's collect footnote definitions and their possible continuations
+        // First, extract and save code blocks so we don't process footnotes inside them
+        var codeBlocks = [];
+        var processedText = text.replace(/```[\s\S]*?```|`[^`]*`/g, function(match) {
+          codeBlocks.push(match);
+          return "CODE_BLOCK_" + (codeBlocks.length - 1);
+        });
+        
+        // Now collect footnote definitions and their possible continuations
         var footnoteDefinitions = {};
         var footnotePattern = /^\[\^([\d\w]+)\]:\s*(.*?)$/gm;
-        var textLines = text.split('\n');
+        var textLines = processedText.split('\n');
         var match;
         var lineIndexesToRemove = [];
 
         // Find the start of each footnote
-        while ((match = footnotePattern.exec(text)) !== null) {
+        while ((match = footnotePattern.exec(processedText)) !== null) {
+          // Skip if this is inside a code block placeholder
+          if (/CODE_BLOCK_\d+/.test(match[0])) continue;
+          
           var footnoteId = match[1];
           var firstLine = match[2];
-          var startLineIndex = text.substring(0, match.index).split('\n').length - 1;
+          var startLineIndex = processedText.substring(0, match.index).split('\n').length - 1;
 
           // Store the line index and starting content
           footnoteDefinitions[footnoteId] = {
@@ -141,15 +151,37 @@ function footnotes() {
           return !lineIndexesToRemove.includes(index);
         });
 
-        return newTextLines.join('\n');
+        var result = newTextLines.join('\n');
+        
+        // Restore code blocks
+        result = result.replace(/CODE_BLOCK_(\d+)/g, function(match, index) {
+          return codeBlocks[parseInt(index)];
+        });
+        
+        return result;
       }
     },
     // Step 3: replace footnote references in the text
     {
       type: 'lang',
       filter: function(text) {
-        return text.replace(/\[\^([\d\w]+)\]/g, function(str, name) {
+        // Extract and save code blocks first
+        var codeBlocks = [];
+        var processedText = text.replace(/```[\s\S]*?```|`[^`]*`/g, function(match) {
+          codeBlocks.push(match);
+          return "CODE_BLOCK_" + (codeBlocks.length - 1);
+        });
+        
+        // Replace footnote references, but skip code blocks
+        processedText = processedText.replace(/\[\^([\d\w]+)\]/g, function(str, name) {
+          // Skip if this is part of a code block placeholder
+          if (/CODE_BLOCK_\d+/.test(str)) return str;
           return '<a id="footnote-ref-' + name + '" href="#footnote-' + name + '" class="footnote-ref">[' + name + ']</a>';
+        });
+        
+        // Restore code blocks
+        return processedText.replace(/CODE_BLOCK_(\d+)/g, function(match, index) {
+          return codeBlocks[parseInt(index)];
         });
       }
     },
