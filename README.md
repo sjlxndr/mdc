@@ -114,21 +114,20 @@ All dependencies are loaded via CDN for ease of use.
 
 ## Project Structure
 
-- `mdc.html`: The main application HTML file with embedded CSS and JavaScript
+- `index.html`: The main application HTML file with embedded CSS and JavaScript
 - `manifest.json`: Web app manifest file for PWA functionality
 - `service-worker.js`: Service Worker for offline capabilities and updates
 - `icons/`: Directory containing various icon sizes for PWA installation
 
 ## Browser Compatibility
 
-Markdown Converter works in all modern browsers:
+Markdown Converter should work in any moderb browser - recent versions of:
 
-- Chrome/Edge (latest 2 versions)
-- Firefox (latest 2 versions)
-- Safari (latest 2 versions)
-- Opera (latest version)
-- iOS Safari and Chrome
-- Android Chrome and Firefox
+- Chrome/Edge
+- Firefox
+- Safari
+- Opera
+- and derivatives of these.
 
 ## Development
 
@@ -140,7 +139,7 @@ To modify or extend Markdown Converter:
    ```bash
    # Example using Python's built-in HTTP server
    python -m http.server 8000
-   # Then navigate to http://localhost:8000/mdc.html
+   # Then navigate to http://localhost:8000/
    ```
 4. For PWA testing, you'll need to use HTTPS or localhost
 
@@ -173,4 +172,4 @@ SOFTWARE.
 This software includes third-party components:
 - **Showdown** is licensed under the MIT License
 - **DOMPurify** is dual-licensed under Apache License 2.0 and Mozilla Public License 2.0
-- **linked photo** The photo linked in the example is Copyright Stephen Alexander 2008, [CC BY-NC-ND](https://creativecommons.org/licenses/by-nc-nd/4.0/)
+- **linked photo** The photo linked in the example is Copyright Stephen Alexander 2008, [CC BY-NC-ND](https://creativecommons.org/licenses/by-nc-nd/4.0/) - more at [Flickr](https://www.flickr.com/photos/sjalex/)
