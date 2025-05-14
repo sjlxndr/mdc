@@ -172,4 +172,3 @@ SOFTWARE.
 This software includes third-party components:
 - **Showdown** is licensed under the MIT License
 - **DOMPurify** is dual-licensed under Apache License 2.0 and Mozilla Public License 2.0
-- **linked photo** The photo linked in the example is Copyright Stephen Alexander 2008, [CC BY-NC-ND](https://creativecommons.org/licenses/by-nc-nd/4.0/) - more at [Flickr](https://www.flickr.com/photos/sjalex/)
