@@ -68,6 +68,7 @@ Markdown Converter is fully keyboard accessible:
 
 Markdown Converter supports footnotes with the following syntax:
 
+```markdown
 Here is text with a footnote reference[^1].
 
 [^1]: This is the footnote content.
@@ -77,6 +78,7 @@ For multi-paragraph footnotes, indent the additional paragraphs with 4 spaces[^2
 [^2]: First paragraph of the footnote.
 
     Second paragraph of the footnote.
+```
 
 ### Progressive Web App Features
 
