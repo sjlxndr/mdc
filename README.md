@@ -22,7 +22,7 @@ A browser-based Markdown editor and HTML converter with live preview, installabl
 
 You can use Markdown Converter in multiple ways:
 
-1. **Web Version**: Visit the hosted version at [mdc.lxndr.net](mdc.lxndr.net)
+1. **Web Version**: Visit the hosted version at [mdc.lxndr.net](https://mdc.lxndr.net)
 2. **PWA Installation**: Click the install button in your browser's address bar to install as a Progressive Web App
 3. **Local File**: Download the [`index.html`](https://raw.githubusercontent.com/sjlxndr/mdc/refs/heads/main/index.html) file and open it in any modern web browser
 4. **Self-Host**: Place [the files](https://github.com/sjlxndr/mdc) on your own web server
