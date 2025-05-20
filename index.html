@@ -26,9 +26,20 @@ This application uses:
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.5/purify.min.js" defer></script>
   <script>
 'use strict';
-function footnotes() {
+function footnotes(options) {
   // Store all footnotes
   var footnoteMap = {};
+  
+  // Default options
+  options = options || {};
+  var indentSpaces = options.indentSpaces || 2;
+  
+  // Create regex pattern based on configured indent spaces
+  // This pattern matches any line with at least the specified indentation
+  var indentRegex = new RegExp('^\\s{' + indentSpaces + ',}|\\t');
+  
+  // This pattern is used to trim exactly one level of indentation (preserving nested levels)
+  var trimRegex = new RegExp('^(\\s{' + indentSpaces + '})');
 
   return [
     // Collect footnote definitions by looking for patterns like:
@@ -78,18 +89,18 @@ function footnotes() {
           // Check subsequent lines for indentation (signifying continuation)
           while (lineIndex < textLines.length) {
             var line = textLines[lineIndex];
-            // Look for lines that start with spaces/tabs (4 spaces is standard for markdown indentation)
-            if (/^\s{4,}|\t/.test(line)) {
+            // Look for lines that start with spaces/tabs (using configured indentation)
+            if (indentRegex.test(line)) {
               // This is a continuation line, add it to the footnote
               // Remove leading whitespace but preserve the rest of the line formatting
-              var trimmedLine = line.replace(/^(\s{4}|\t)/, '');
+              var trimmedLine = line.replace(trimRegex, '');
               def.continuationLines.push(trimmedLine);
               lineIndexesToRemove.push(lineIndex);
               lineIndex++;
             } else if (line.trim() === '') {
               // Empty line could be between paragraphs within the footnote
               // Check if the next line is also indented
-              if (lineIndex + 1 < textLines.length && /^\s{4,}|\t/.test(textLines[lineIndex + 1])) {
+              if (lineIndex + 1 < textLines.length && indentRegex.test(textLines[lineIndex + 1])) {
                 // This empty line is within the footnote - add a paragraph break
                 def.continuationLines.push('\n\n'); // Add paragraph breaks instead of line breaks
                 lineIndexesToRemove.push(lineIndex);
@@ -729,6 +740,48 @@ function footnotes() {
     }
     
     /* Theme Switch Styles */
+    /* Indent selector styles */
+    .indent-selector {
+      display: flex;
+      align-items: center;
+      margin: 0 10px;
+      padding: 0 5px;
+    }
+    
+    /* Adjust spacing for mobile */
+    @media (max-width: 768px) {
+      .indent-selector {
+        margin: 0 5px;
+      }
+      
+      .indent-selector label {
+        font-size: 12px;
+      }
+    }
+    
+    .indent-selector label {
+      margin-right: 5px;
+      font-size: 14px;
+    }
+    
+    .indent-selector select {
+      padding: 3px 6px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background-color: white;
+      font-size: 14px;
+    }
+    
+    .dark-mode .indent-selector select {
+      background-color: #3d3d3d;
+      color: var(--text-color);
+      border-color: #555;
+    }
+    
+    .dark-mode .indent-selector label {
+      color: var(--text-color);
+    }
+    
     .theme-switch-wrapper {
       display: flex;
       align-items: center;
@@ -1057,6 +1110,16 @@ function footnotes() {
           <button class="button" id="clear-btn">Clear</button>
           <button class="button" id="sample-btn">Load Sample</button>
           <button class="button" id="info-btn" aria-label="Information">❓</button>
+          
+          <!-- Markdown flavor selector -->
+          <div class="indent-selector">
+            <label for="indent-spaces">Flavor:</label>
+            <select id="indent-spaces" aria-label="Select markdown flavor">
+              <option value="2">GitHub</option>
+              <option value="4">CommonMark</option>
+            </select>
+          </div>
+          
           <div class="theme-switch-wrapper">
             <div class="theme-switch">
               <input type="checkbox" id="theme-switch-checkbox" checked>
@@ -1158,6 +1221,7 @@ function footnotes() {
       const infoBtn = document.getElementById('info-btn');
       const infoModal = document.getElementById('info-modal');
       const closeModalBtn = document.getElementById('close-modal-btn');
+      const indentSelector = document.getElementById('indent-spaces');
       
       // Create and set up the persistent clean iframe for copy operations
       const cleanCopyIframe = document.createElement('iframe');
@@ -1333,14 +1397,29 @@ function footnotes() {
         themeSwitch.checked = false;
       }
       
-      // Initialize Showdown converter
-      const converter = new showdown.Converter({
-        tables: true,
-        tasklists: true,
-        strikethrough: true,
-        ghCodeBlocks: true,
-        extensions: [footnotes]
+      // Get user's preferred indentation from localStorage or default to 2
+      const preferredIndent = parseInt(localStorage.getItem('markdownIndentSpaces') || '2');
+      
+      // Set the indent selector to match the stored preference
+      if (indentSelector) {
+        indentSelector.value = preferredIndent.toString();
+      }
+      
+      // We'll initialize the documentation example in the DOMContentLoaded handler below
+      
+      // Initialize Showdown converter with appropriate flavor based on preference
+      let converter = new showdown.Converter({
+        extensions: [footnotes({indentSpaces: preferredIndent})]
       });
+      
+      // Use GitHub flavor for 2-space preference, vanilla flavor for 4-space preference
+      if (preferredIndent === 2) {
+        // GitHub flavor for 2-space indentation
+        converter.setFlavor('github');
+      } else {
+        // CommonMark flavor for 4-space indentation (CommonMark/standard behavior)
+        converter.setFlavor('vanilla');
+      }
       
       
       // Update preview on input
@@ -2049,16 +2128,205 @@ Generated content using:
             return response.text();
           })
           .then(content => {
-            // Set the content in the editor
+            // Set the content directly without adjusting indentation
+            // Showdown should handle the indentation based on its settings
             markdownEditor.value = content;
+            
+            // Force update with current indentation settings
+            forceUpdateWithCurrentIndentation();
+            
             // Update preview
             updatePreview();
           })
           .catch(error => {
             console.error('Error loading README.md:', error);
-            markdownEditor.value = `# Error Loading Sample\n\nUnable to load README.md: ${error.message}\n\nPlease try again later.`;
+            
+            // Create a sample markdown that demonstrates appropriate indentation style
+            const preferredIndent = parseInt(localStorage.getItem('markdownIndentSpaces') || '2');
+            const isGitHubStyle = preferredIndent === 2;
+            
+            // Create appropriate sample based on indentation style
+            const createSample = () => {
+              if (isGitHubStyle) {
+                // GitHub-style (2 spaces)
+                return `# Markdown Indentation Guide (GitHub-Style)
+
+## List Indentation (2 spaces)
+
+GitHub-style Markdown uses 2-space indentation for nested lists:
+
+- First level item
+- First level item
+  - Second level item (indented 2 spaces)
+  - Second level item (indented 2 spaces)
+    * Third level item (indented 4 spaces)
+    * Third level item (indented 4 spaces)
+- Back to first level
+
+## Numbered Lists
+
+1. First level item
+2. First level item
+   1. Second level item (indented 3 spaces)
+   2. Second level item (indented 3 spaces)
+      1. Third level item (indented 6 spaces)
+3. Back to first level
+
+## Code Block Examples
+
+\`\`\`javascript
+// This is a fenced code block
+function example() {
+  return "Hello world";
+}
+\`\`\`
+
+Indented code block (indented 2 spaces):
+
+  This is an indented code block.
+  It uses exactly 2 spaces.
+
+## Footnotes Example
+
+Here is a footnote reference[^1].
+
+[^1]: This is the first footnote.
+  This is the second line (indented 2 spaces).
+
+  This is a new paragraph in the footnote (indented 2 spaces).`;
+              } else {
+                // CommonMark-style (4 spaces)
+                return `# Markdown Indentation Guide (CommonMark-Style)
+
+## List Indentation (4 spaces)
+
+CommonMark-style Markdown uses 4-space indentation for nested lists:
+
+- First level item
+- First level item
+    - Second level item (indented 4 spaces)
+    - Second level item (indented 4 spaces)
+        * Third level item (indented 8 spaces)
+        * Third level item (indented 8 spaces)
+- Back to first level
+
+## Numbered Lists
+
+1. First level item
+2. First level item
+    1. Second level item (indented 4 spaces)
+    2. Second level item (indented 4 spaces)
+        1. Third level item (indented 8 spaces)
+3. Back to first level
+
+## Code Block Examples
+
+\`\`\`javascript
+// This is a fenced code block
+function example() {
+  return "Hello world";
+}
+\`\`\`
+
+Indented code block (indented 4 spaces):
+
+    This is an indented code block.
+    It uses exactly 4 spaces.
+
+## Footnotes Example
+
+Here is a footnote reference[^1].
+
+[^1]: This is the first footnote.
+    This is the second line (indented 4 spaces).
+    
+    This is a new paragraph in the footnote (indented 4 spaces).`;
+              }
+            };
+            
+            // Set the editor content to our dynamically created sample
+            markdownEditor.value = createSample();
             updatePreview();
           });
+      }
+      
+      // Force update with current indentation settings
+      function forceUpdateWithCurrentIndentation() {
+        // Get the current indentation preference
+        const preferredIndent = parseInt(localStorage.getItem('markdownIndentSpaces') || '2');
+        
+        // Recreate the converter with appropriate flavor based on preference
+        const newConverter = new showdown.Converter({
+          extensions: [footnotes({indentSpaces: preferredIndent})]
+        });
+        
+        // Use GitHub flavor for 2-space preference, vanilla flavor for 4-space preference
+        if (preferredIndent === 2) {
+          // GitHub flavor for 2-space indentation
+          newConverter.setFlavor('github');
+        } else {
+          // CommonMark flavor for 4-space indentation (CommonMark/standard behavior)
+          newConverter.setFlavor('vanilla');
+        }
+        
+        // Replace the global converter instance
+        converter = newConverter;
+      }
+      
+      // Function to adjust markdown indentation based on preference
+      function adjustMarkdownIndentation(content, indentSpaces) {
+        // Process content line by line
+        const lines = content.split('\n');
+        const result = [];
+        
+        // Pattern to detect indented lines
+        const indentPattern = /^(\s+)(.*)$/;
+        
+        // Track code block context
+        let inCodeBlock = false;
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          
+          // Check for code block markers
+          if (line.trim().startsWith('```')) {
+            inCodeBlock = !inCodeBlock;
+            result.push(line); // Keep code block markers unchanged
+            continue;
+          }
+          
+          // If we're in a fenced code block, don't adjust indentation
+          if (inCodeBlock) {
+            result.push(line);
+            continue;
+          }
+          
+          const match = line.match(indentPattern);
+          
+          if (match) {
+            // Line has indentation
+            const currentIndent = match[1]; 
+            const content = match[2];
+            
+            // Simple approach:
+            // Count spaces and divide by 2 to determine levels
+            // This works consistently with both 2-space and 4-space preferences
+            const spaceCount = currentIndent.length;
+            
+            // For every 2 spaces in the original, that's one level
+            // This works for both 2-space and 4-space content
+            const indentLevel = Math.ceil(spaceCount / 2);
+            
+            // Apply user's preferred indentation
+            const newIndent = ' '.repeat(indentSpaces * indentLevel);
+            result.push(newIndent + content);
+          } else {
+            // Line has no indentation
+            result.push(line);
+          }
+        }
+        
+        return result.join('\n');
       }
       
       // Toggle dark/light theme and save preference
@@ -2194,9 +2462,142 @@ Generated content using:
       infoBtn.addEventListener('click', openModal);
       closeModalBtn.addEventListener('click', closeModal);
       
+      // Function to update the documentation example text
+      function updateIndentationExample(spaces) {
+        // Convert to number
+        const spacesNum = parseInt(spaces);
+        const isGitHubStyle = spacesNum === 2;
+        
+        // Update the displayed indent values
+        const indentDisplays = [
+          document.getElementById('indent-setting-display'),
+          document.getElementById('list-indent-display'),
+          document.getElementById('code-indent-display')
+        ];
+        
+        indentDisplays.forEach(display => {
+          if (display) {
+            display.textContent = spacesNum;
+          }
+        });
+        
+        // Update flavor display
+        const flavorDisplay = document.getElementById('flavor-display');
+        if (flavorDisplay) {
+          flavorDisplay.textContent = isGitHubStyle ? 'GitHub' : 'CommonMark';
+        }
+        
+        // Update indentation note based on flavor
+        const indentationNote = document.getElementById('indentation-note');
+        if (indentationNote) {
+          if (isGitHubStyle) {
+            indentationNote.innerHTML = '<strong>Note:</strong> GitHub Flavored Markdown uses 2-space indentation for nested lists. First level items have no indentation, second level items are indented by 2-3 spaces, and third level items by 4-6 spaces.';
+          } else {
+            indentationNote.innerHTML = '<strong>Note:</strong> CommonMark uses 4-space indentation for nested lists. First level items have no indentation, second level items are indented by 4 spaces, and third level items by 8 spaces.';
+          }
+        }
+        
+        // Update the footnote example text with proper indentation
+        const footnoteExample = document.getElementById('footnote-indent-example');
+        if (footnoteExample) {
+          const indent = ' '.repeat(spacesNum);
+          footnoteExample.textContent = `
+[^2]: First paragraph of the footnote.
+${indent}
+${indent}Second paragraph of the footnote (indented ${spacesNum} spaces).
+          `;
+        }
+        
+        // Update the list example text with appropriate indentation for selected style
+        const listExample = document.getElementById('list-indent-example');
+        if (listExample) {
+          if (isGitHubStyle) {
+            // GitHub style uses 3 spaces for numbered list indentation
+            const level1Indent = '   '; // 3 spaces
+            const level2Indent = '      '; // 6 spaces
+            
+            listExample.textContent = `
+1. First level item
+2. First level item
+${level1Indent}- Second level item (indented 3 spaces)
+${level1Indent}- Second level item (indented 3 spaces)
+${level2Indent}* Third level item (indented 6 spaces)
+${level2Indent}* Third level item (indented 6 spaces)
+            `;
+          } else {
+            // CommonMark style uses 4 spaces per level
+            const level1Indent = '    '; // 4 spaces
+            const level2Indent = '        '; // 8 spaces
+            
+            listExample.textContent = `
+1. First level item
+2. First level item
+${level1Indent}- Second level item (indented 4 spaces)
+${level1Indent}- Second level item (indented 4 spaces)
+${level2Indent}* Third level item (indented 8 spaces)
+${level2Indent}* Third level item (indented 8 spaces)
+            `;
+          }
+        }
+        
+        // Update the code block example with proper indentation
+        const codeExample = document.getElementById('code-indent-example');
+        if (codeExample) {
+          const indent = ' '.repeat(spacesNum);
+          
+          codeExample.textContent = `
+Normal text.
+
+${indent}This is a code block.
+${indent}It's indented with ${spacesNum} spaces.
+  
+Normal text again.
+          `;
+        }
+      }
+      
+      // Handle indentation preference changes
+      indentSelector.addEventListener('change', function() {
+        // Store the preference
+        const selectedIndent = indentSelector.value;
+        localStorage.setItem('markdownIndentSpaces', selectedIndent);
+        
+        // Update the converter with the new indentation settings
+        forceUpdateWithCurrentIndentation();
+        
+        // Update the preview to reflect the new indentation setting
+        updatePreview();
+        
+        // Update the documentation example
+        updateIndentationExample(selectedIndent);
+        
+        // Show a notification about the changed setting
+        const actionBar = document.querySelector('div.action-bar');
+        if (actionBar) {
+          const message = document.createElement('button');
+          const flavorName = selectedIndent === '2' ? 'GitHub' : 'CommonMark';
+          message.textContent = `Markdown flavor set to ${flavorName}`;
+          message.style.backgroundColor = '#4CAF50';
+          message.style.color = 'white';
+          message.classList.add('button');
+          
+          actionBar.appendChild(message);
+          
+          setTimeout(() => {
+            actionBar.removeChild(message);
+          }, 2000);
+        }
+      });
+      
+      
+      // Make sure our converter is properly initialized with the current preference
+      forceUpdateWithCurrentIndentation();
       
       // Initialize preview with any existing content
       updatePreview();
+      
+      // Initialize the documentation example with the current preference
+      updateIndentationExample(preferredIndent);
       
       // Check for stored markdown content
       const storedMarkdown = localStorage.getItem('markdownContent');
@@ -2356,13 +2757,50 @@ Here is a sentence with a footnote reference[^1].
 
 [^1]: This is the footnote content.
         </pre>
-        <p>For multi-paragraph footnotes, indent subsequent paragraphs with 4 spaces:</p>
-        <pre>
+        <p>For multi-paragraph footnotes, indent subsequent paragraphs with your selected indentation spacing (<span id="indent-setting-display">2</span> spaces currently):</p>
+        <pre id="footnote-indent-example">
 [^2]: First paragraph of the footnote.
-    
-    Second paragraph of the footnote.
+  
+  Second paragraph of the footnote.
         </pre>
+        <p>You can select your preferred Markdown flavor using the "Flavor" dropdown in the toolbar. This setting affects all indentation-sensitive markdown elements including footnotes, lists, and code blocks:</p>
+        <ul>
+          <li><strong>GitHub</strong> - Uses GitHub Flavored Markdown with 2-space indentation for lists</li>
+          <li><strong>CommonMark</strong> - Uses CommonMark/standard Markdown with 4-space indentation for lists</li>
+        </ul>
         <p>Footnotes will be collected and displayed at the bottom of the document.</p>
+        
+        <h3>Nested Lists</h3>
+        <p>This app adjusts to your selected Markdown flavor (<span id="flavor-display">GitHub</span>):</p>
+        <pre id="list-indent-example">
+1. First level item
+2. First level item
+   - Second level item (indented 3 spaces)
+   - Second level item (indented 3 spaces)
+      * Third level item (indented 6 spaces)
+      * Third level item (indented 6 spaces)
+        </pre>
+        <p id="indentation-note"><strong>Note:</strong> GitHub-style Markdown uses 2-space indentation for nested lists. First level items have no indentation, second level items are indented by 2-3 spaces, and third level items by 4-6 spaces.</p>
+        
+        <h3>Code Blocks</h3>
+        <p>Regular code blocks can be created with indentation (<span id="code-indent-display">2</span> spaces):</p>
+        <pre id="code-indent-example">
+Normal text.
+
+  This is a code block.
+  It's indented with spaces.
+  
+Normal text again.
+        </pre>
+        <p>You can also use triple backticks for code blocks, which don't require indentation:</p>
+        <pre>
+```javascript
+// This is a code block with language specification
+function example() {
+  return "Hello world";
+}
+```
+        </pre>
         
         <h3>License</h3>
         <p>Markdown Converter is released under the MIT License.</p>
