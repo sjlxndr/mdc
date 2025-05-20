@@ -741,7 +741,7 @@ function footnotes(options) {
     
     /* Theme Switch Styles */
     /* Indent selector styles */
-    .indent-selector {
+    .flavor-selector {
       display: flex;
       align-items: center;
       margin: 0 10px;
@@ -750,21 +750,21 @@ function footnotes(options) {
     
     /* Adjust spacing for mobile */
     @media (max-width: 768px) {
-      .indent-selector {
+      .flavor-selector {
         margin: 0 5px;
       }
       
-      .indent-selector label {
+      .flavor-selector label {
         font-size: 12px;
       }
     }
     
-    .indent-selector label {
+    .flavor-selector label {
       margin-right: 5px;
       font-size: 14px;
     }
     
-    .indent-selector select {
+    .flavor-selector select {
       padding: 3px 6px;
       border: 1px solid var(--border-color);
       border-radius: 4px;
@@ -772,13 +772,13 @@ function footnotes(options) {
       font-size: 14px;
     }
     
-    .dark-mode .indent-selector select {
+    .dark-mode .flavor-selector select {
       background-color: #3d3d3d;
       color: var(--text-color);
       border-color: #555;
     }
     
-    .dark-mode .indent-selector label {
+    .dark-mode .flavor-selector label {
       color: var(--text-color);
     }
     
@@ -1112,11 +1112,11 @@ function footnotes(options) {
           <button class="button" id="info-btn" aria-label="Information">❓</button>
           
           <!-- Markdown flavor selector -->
-          <div class="indent-selector">
-            <label for="indent-spaces">Flavor:</label>
-            <select id="indent-spaces" aria-label="Select markdown flavor">
-              <option value="2">GitHub</option>
-              <option value="4">CommonMark</option>
+          <div class="flavor-selector">
+            <label for="flavor">Flavor:</label>
+            <select id="flavor" aria-label="Select markdown flavor">
+              <option value="github">GitHub</option>
+              <option value="vanilla">CommonMark</option>
             </select>
           </div>
           
@@ -1221,7 +1221,7 @@ function footnotes(options) {
       const infoBtn = document.getElementById('info-btn');
       const infoModal = document.getElementById('info-modal');
       const closeModalBtn = document.getElementById('close-modal-btn');
-      const indentSelector = document.getElementById('indent-spaces');
+      const flavorSelector = document.getElementById('flavor');
       
       // Create and set up the persistent clean iframe for copy operations
       const cleanCopyIframe = document.createElement('iframe');
@@ -1397,29 +1397,23 @@ function footnotes(options) {
         themeSwitch.checked = false;
       }
       
-      // Get user's preferred indentation from localStorage or default to 2
-      const preferredIndent = parseInt(localStorage.getItem('markdownIndentSpaces') || '2');
+      // Get user's preferred markdown flavor from localStorage or default to 'github'
+      const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
       
-      // Set the indent selector to match the stored preference
-      if (indentSelector) {
-        indentSelector.value = preferredIndent.toString();
+      // Set the flavor selector to match the stored preference
+      if (flavorSelector) {
+        flavorSelector.value = preferredFlavor;
       }
       
       // We'll initialize the documentation example in the DOMContentLoaded handler below
       
       // Initialize Showdown converter with appropriate flavor based on preference
       let converter = new showdown.Converter({
-        extensions: [footnotes({indentSpaces: preferredIndent})]
+        extensions: [footnotes({indentSpaces: preferredFlavor === 'github' ? 2 : 4})]
       });
       
-      // Use GitHub flavor for 2-space preference, vanilla flavor for 4-space preference
-      if (preferredIndent === 2) {
-        // GitHub flavor for 2-space indentation
-        converter.setFlavor('github');
-      } else {
-        // CommonMark flavor for 4-space indentation (CommonMark/standard behavior)
-        converter.setFlavor('vanilla');
-      }
+      // Set the Showdown flavor based on user preference
+      converter.setFlavor(preferredFlavor);
       
       
       // Update preview on input
@@ -2132,8 +2126,8 @@ Generated content using:
             // Showdown should handle the indentation based on its settings
             markdownEditor.value = content;
             
-            // Force update with current indentation settings
-            forceUpdateWithCurrentIndentation();
+            // Update the converter with the current flavor setting
+            updateConverterWithCurrentFlavor();
             
             // Update preview
             updatePreview();
@@ -2141,9 +2135,9 @@ Generated content using:
           .catch(error => {
             console.error('Error loading README.md:', error);
             
-            // Create a sample markdown that demonstrates appropriate indentation style
-            const preferredIndent = parseInt(localStorage.getItem('markdownIndentSpaces') || '2');
-            const isGitHubStyle = preferredIndent === 2;
+            // Create a sample markdown that demonstrates the current flavor's style
+            const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
+            const isGitHubStyle = preferredFlavor === 'github';
             
             // Create appropriate sample based on indentation style
             const createSample = () => {
@@ -2250,31 +2244,27 @@ Here is a footnote reference[^1].
           });
       }
       
-      // Force update with current indentation settings
-      function forceUpdateWithCurrentIndentation() {
-        // Get the current indentation preference
-        const preferredIndent = parseInt(localStorage.getItem('markdownIndentSpaces') || '2');
+      // Update the converter with the current flavor settings
+      function updateConverterWithCurrentFlavor() {
+        // Get the current flavor preference from localStorage or default to 'github'
+        const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
         
-        // Recreate the converter with appropriate flavor based on preference
+        // Recreate the converter with appropriate settings
         const newConverter = new showdown.Converter({
-          extensions: [footnotes({indentSpaces: preferredIndent})]
+          extensions: [footnotes({indentSpaces: preferredFlavor === 'github' ? 2 : 4})]
         });
         
-        // Use GitHub flavor for 2-space preference, vanilla flavor for 4-space preference
-        if (preferredIndent === 2) {
-          // GitHub flavor for 2-space indentation
-          newConverter.setFlavor('github');
-        } else {
-          // CommonMark flavor for 4-space indentation (CommonMark/standard behavior)
-          newConverter.setFlavor('vanilla');
-        }
+        // Set the flavor directly from localStorage
+        newConverter.setFlavor(preferredFlavor);
         
         // Replace the global converter instance
         converter = newConverter;
       }
       
-      // Function to adjust markdown indentation based on preference
-      function adjustMarkdownIndentation(content, indentSpaces) {
+      // Function to adjust markdown indentation based on flavor preference
+      function adjustMarkdownIndentation(content, flavor) {
+        // Determine indentation spaces based on flavor
+        const indentSpaces = flavor === 'github' ? 2 : 4;
         // Process content line by line
         const lines = content.split('\n');
         const result = [];
@@ -2462,11 +2452,14 @@ Here is a footnote reference[^1].
       infoBtn.addEventListener('click', openModal);
       closeModalBtn.addEventListener('click', closeModal);
       
-      // Function to update the documentation example text
-      function updateIndentationExample(spaces) {
-        // Convert to number
-        const spacesNum = parseInt(spaces);
-        const isGitHubStyle = spacesNum === 2;
+      // Function to update the documentation examples based on current flavor
+      function updateIndentationExample() {
+        // Get the current flavor preference
+        const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
+        const isGitHubStyle = preferredFlavor === 'github';
+        
+        // Determine the indentation spacing based on flavor directly from the flavor
+        const spacesNum = isGitHubStyle ? 2 : 4;
         
         // Update the displayed indent values
         const indentDisplays = [
@@ -2556,26 +2549,29 @@ Normal text again.
         }
       }
       
-      // Handle indentation preference changes
-      indentSelector.addEventListener('change', function() {
-        // Store the preference
-        const selectedIndent = indentSelector.value;
-        localStorage.setItem('markdownIndentSpaces', selectedIndent);
+      // Handle flavor preference changes
+      flavorSelector.addEventListener('change', function() {
+        // Store the selected flavor preference
+        const selectedFlavor = flavorSelector.value;
+        localStorage.setItem('markdownFlavor', selectedFlavor);
         
-        // Update the converter with the new indentation settings
-        forceUpdateWithCurrentIndentation();
+        // Get the corresponding indentation size based on flavor
+        const indentSize = selectedFlavor === 'github' ? 2 : 4;
         
-        // Update the preview to reflect the new indentation setting
+        // Update the converter with the new flavor settings
+        updateConverterWithCurrentFlavor();
+        
+        // Update the preview to reflect the new flavor setting
         updatePreview();
         
-        // Update the documentation example
-        updateIndentationExample(selectedIndent);
+        // Update the documentation examples
+        updateIndentationExample();
         
         // Show a notification about the changed setting
         const actionBar = document.querySelector('div.action-bar');
         if (actionBar) {
           const message = document.createElement('button');
-          const flavorName = selectedIndent === '2' ? 'GitHub' : 'CommonMark';
+          const flavorName = selectedFlavor === 'github' ? 'GitHub' : 'CommonMark';
           message.textContent = `Markdown flavor set to ${flavorName}`;
           message.style.backgroundColor = '#4CAF50';
           message.style.color = 'white';
@@ -2590,14 +2586,14 @@ Normal text again.
       });
       
       
-      // Make sure our converter is properly initialized with the current preference
-      forceUpdateWithCurrentIndentation();
+      // Make sure our converter is properly initialized with the current flavor
+      updateConverterWithCurrentFlavor();
       
       // Initialize preview with any existing content
       updatePreview();
       
-      // Initialize the documentation example with the current preference
-      updateIndentationExample(preferredIndent);
+      // Initialize the documentation examples with the current flavor
+      updateIndentationExample();
       
       // Check for stored markdown content
       const storedMarkdown = localStorage.getItem('markdownContent');
