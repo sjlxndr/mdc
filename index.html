@@ -1843,29 +1843,11 @@ Generated content using:
     }
       
       function loadSample() {
-        markdownEditor.value = "Loading README.md...";
+        const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
+        const isGitHubStyle = preferredFlavor === 'github';
         
-        fetch('./README.md')
-          .then(response => {
-            if (!response.ok) {
-              throw new Error(`Failed to load README.md: ${response.status} ${response.statusText}`);
-          }
-            return response.text();
-        })
-          .then(content => {
-            markdownEditor.value = content;
-            
-            updateConverterWithCurrentFlavor();
-            
-            updatePreview();
-        })
-          .catch(error => {
-            
-            const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
-            const isGitHubStyle = preferredFlavor === 'github';
-            
-            const createSample = () => {
-              return `# Markdown Converter Demo
+        const createSample = () => {
+          return `# Markdown Converter Demo
 
 Welcome! This is a **live preview** of your Markdown.
 
@@ -1895,11 +1877,11 @@ This has a footnote[^1].
 ---
 
 **💡 Tip:** Click the **❓** button for complete documentation and examples!`;
-          };
-            
-            markdownEditor.value = createSample();
-            updatePreview();
-        });
+        };
+        
+        markdownEditor.value = createSample();
+        updateConverterWithCurrentFlavor();
+        updatePreview();
     }
       
       function updateConverterWithCurrentFlavor() {
