@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Markdown Converter Help</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; background: #f8f9fa; color: #343a40; }
+    h1, h2, h3 { color: #333; }
+    kbd { background: #f7f7f7; border: 1px solid #ccc; border-radius: 3px; padding: 3px 6px; font-family: monospace; font-size: 0.9em; }
+    pre { background: #f6f8fa; padding: 16px; border-radius: 4px; overflow-x: auto; border: 1px solid #e1e4e8; }
+    ul, ol { padding-left: 2em; }
+    a { color: #0366d6; }
+    
+    /* Dark mode styles */
+    body.dark-mode { background: #1a1a1a; color: #f1f3f5; }
+    body.dark-mode h1, body.dark-mode h2, body.dark-mode h3 { color: #f1f3f5; }
+    body.dark-mode kbd { background: #444; border-color: #666; color: #f7f7f7; }
+    body.dark-mode pre { background: #222; border-color: #444; color: #e6e6e6; }
+    body.dark-mode a { color: #78c8ff; }
+  </style>
+  <script>
+    // Check localStorage for dark mode setting and apply it
+    document.addEventListener('DOMContentLoaded', function() {
+      const darkMode = localStorage.getItem('darkMode');
+      if (darkMode === 'true' || darkMode === true) {
+        document.body.classList.add('dark-mode');
+      }
+    });
+  </script>
+</head>
+<body>
+  <h1>Markdown Converter - Complete Help</h1>
+  
+  <p>This app allows you to write Markdown and see it rendered as HTML in real-time. It's perfect for drafting content, documentation, README files, or any text that benefits from formatting.</p>
+  <p>This is a self-contained application that works offline in any modern browser.</p>
+  
+  <h2>Key Features</h2>
+  <ul>
+    <li>Real-time preview as you type</li>
+    <li>Dark/light mode toggle</li>
+    <li>Export as HTML or Markdown</li>
+    <li>Copy formatted HTML to clipboard</li>
+    <li>Print directly from the preview</li>
+    <li>Footnotes support</li>
+    <li>Works offline in any modern browser</li>
+    <li>Installable as a Progressive Web App</li>
+  </ul>
+  <p>Simply start typing in the left panel to see your formatted content on the right.</p>
+  
+  <h2>Installation & Usage</h2>
+  <p>You can use this app in several ways:</p>
+  <ol>
+    <li>Use directly in your browser at the current URL</li>
+    <li>Install as a PWA by clicking the install button in your browser's address bar or menu</li>
+    <li>Download the HTML file and related assets to use locally</li>
+    <li>Host on your own server</li>
+  </ol>
+  <p>Once installed as a PWA, the app will work offline and can be launched from your device's home screen or app drawer.</p>
+  
+  <h2>Keyboard Shortcuts</h2>
+  <p>This application supports the following keyboard shortcuts:</p>
+  <ul>
+    <li><kbd>Alt</kbd> + <kbd>E</kbd>: Focus the editor</li>
+    <li><kbd>Alt</kbd> + <kbd>P</kbd>: Focus the preview</li>
+    <li><kbd>Alt</kbd> + <kbd>S</kbd>: Focus the splitter</li>
+    <li><kbd>Alt</kbd> + <kbd>C</kbd>: Copy HTML to clipboard</li>
+    <li><kbd>Alt</kbd> + <kbd>D</kbd>: Download HTML</li>
+    <li><kbd>Alt</kbd> + <kbd>X</kbd>: Clear editor content</li>
+    <li><kbd>Alt</kbd> + <kbd>R</kbd>: Print document</li>
+    <li><kbd>Alt</kbd> + <kbd>H</kbd>: Open this help dialog</li>
+    <li><kbd>Alt</kbd> + <kbd>T</kbd>: Toggle light/dark theme</li>
+  </ul>
+  
+  <h3>Splitter Controls</h3>
+  <p>When the splitter is focused (by clicking or tabbing to it, or selecting with <kbd>Alt</kbd> + <kbd>S</kbd>):</p>
+  <ul>
+    <li><kbd>←</kbd>: Decrease editor width (move splitter left)</li>
+    <li><kbd>→</kbd>: Increase editor width (move splitter right)</li>
+    <li><kbd>↑</kbd>: Decrease editor width with bigger steps (move splitter left more)</li>
+    <li><kbd>↓</kbd>: Increase editor width with bigger steps (move splitter right more)</li>
+    <li><kbd>Home</kbd>: Minimize editor (maximize preview area)</li>
+    <li><kbd>End</kbd>: Maximize editor area</li>
+    <li><kbd>Space</kbd> or <kbd>Enter</kbd>: Reset splitter to center (50/50)</li>
+  </ul>
+  
+  <h2>Using Footnotes</h2>
+  <p>You can add footnotes to your document with the following syntax:</p>
+  <pre>Here is a sentence with a footnote reference[^1].
+
+[^1]: This is the footnote content.</pre>
+  <p>For multi-paragraph footnotes, indent subsequent paragraphs with your selected indentation spacing (2 spaces for GitHub, 4 for CommonMark):</p>
+  <pre>[^2]: First paragraph of the footnote.
+  
+  Second paragraph of the footnote.</pre>
+  <p>You can select your preferred Markdown flavor using the "Flavor" dropdown in the toolbar. This setting affects all indentation-sensitive markdown elements including footnotes, lists, and code blocks:</p>
+  <ul>
+    <li><strong>GitHub</strong> - Uses GitHub Flavored Markdown with 2-space indentation for lists</li>
+    <li><strong>CommonMark</strong> - Uses CommonMark/standard Markdown with 4-space indentation for lists</li>
+  </ul>
+  <p>Footnotes will be collected and displayed at the bottom of the document.</p>
+  
+  <h2>Nested Lists</h2>
+  <p>This app adjusts to your selected Markdown flavor:</p>
+  <h3>GitHub Style (2-space indentation)</h3>
+  <pre>1. First level item
+2. First level item
+   - Second level item (indented 3 spaces)
+   - Second level item (indented 3 spaces)
+      * Third level item (indented 6 spaces)
+      * Third level item (indented 6 spaces)</pre>
+  
+  <h3>CommonMark Style (4-space indentation)</h3>
+  <pre>1. First level item
+2. First level item
+    - Second level item (indented 4 spaces)
+    - Second level item (indented 4 spaces)
+        * Third level item (indented 8 spaces)
+        * Third level item (indented 8 spaces)</pre>
+  
+  <h2>Code Blocks</h2>
+  <p>Regular code blocks can be created with indentation (2 or 4 spaces depending on your flavor setting):</p>
+  <pre>Normal text.
+
+  This is a code block.
+  It's indented with spaces.
+  
+Normal text again.</pre>
+  <p>You can also use triple backticks for code blocks, which don't require indentation:</p>
+  <pre>```javascript
+// This is a code block with language specification
+function example() {
+  return "Hello world";
+}
+```</pre>
+  
+  <h2>License</h2>
+  <p>Markdown Converter is released under the MIT License.</p>
+  <p>Copyright (c) 2025 Stephen Alexander</p>
+  <p>Uses the following libraries:</p>
+  <ul>
+    <li><a href="https://github.com/showdownjs/showdown" target="_blank">Showdown</a> (v2.1.0) - MIT License - For Markdown conversion</li>
+    <li><a href="https://github.com/cure53/DOMPurify" target="_blank">DOMPurify</a> (v3.2.5) - Dual-licensed under Apache License 2.0 and Mozilla Public License 2.0 - For HTML sanitization</li>
+  </ul>
+  <p>This software contains third-party components with separate copyright notices and license terms. Your use of these components is subject to the terms and conditions of their respective licenses.</p>
+</body>
+</html>

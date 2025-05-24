@@ -27,198 +27,156 @@ This application uses:
   <script>
 'use strict';
 function footnotes(options) {
-  // Store all footnotes
   var footnoteMap = {};
   
-  // Default options
   options = options || {};
   var indentSpaces = options.indentSpaces || 2;
   
-  // Create regex pattern based on configured indent spaces
-  // This pattern matches any line with at least the specified indentation
   var indentRegex = new RegExp('^\\s{' + indentSpaces + ',}|\\t');
   
-  // This pattern is used to trim exactly one level of indentation (preserving nested levels)
   var trimRegex = new RegExp('^(\\s{' + indentSpaces + '})');
 
   return [
-    // Collect footnote definitions by looking for patterns like:
-    // [^1]: Footnote text
-    //     Indented continuation of footnote (note: Showdown normally treats indented lines as code blocks)
-    {
+ {
       type: 'lang',
       filter: function(text) {
-        // First, extract and save code blocks so we don't process footnotes inside them
         var codeBlocks = [];
         var processedText = text.replace(/```[\s\S]*?```|`[^`]*`/g, function(match) {
           codeBlocks.push(match);
           return "CODE_BLOCK_" + (codeBlocks.length - 1);
-        });
+      });
         
-        // Now collect footnote definitions and their possible continuations
         var footnoteDefinitions = {};
         var footnotePattern = /^\[\^([\d\w]+)\]:\s*(.*?)$/gm;
         var textLines = processedText.split('\n');
         var match;
         var lineIndexesToRemove = [];
 
-        // Find the start of each footnote
         while ((match = footnotePattern.exec(processedText)) !== null) {
-          // Skip if this is inside a code block placeholder
           if (/CODE_BLOCK_\d+/.test(match[0])) continue;
           
           var footnoteId = match[1];
           var firstLine = match[2];
           var startLineIndex = processedText.substring(0, match.index).split('\n').length - 1;
 
-          // Store the line index and starting content
           footnoteDefinitions[footnoteId] = {
             content: firstLine,
             startLine: startLineIndex,
             continuationLines: []
-          };
+        };
 
           lineIndexesToRemove.push(startLineIndex);
-        }
+      }
 
-        // Now look for continuation lines (indented lines following a footnote definition)
         Object.keys(footnoteDefinitions).forEach(function(id) {
           var def = footnoteDefinitions[id];
           var lineIndex = def.startLine + 1;
 
-          // Check subsequent lines for indentation (signifying continuation)
           while (lineIndex < textLines.length) {
             var line = textLines[lineIndex];
-            // Look for lines that start with spaces/tabs (using configured indentation)
             if (indentRegex.test(line)) {
-              // This is a continuation line, add it to the footnote
-              // Remove leading whitespace but preserve the rest of the line formatting
               var trimmedLine = line.replace(trimRegex, '');
               def.continuationLines.push(trimmedLine);
               lineIndexesToRemove.push(lineIndex);
               lineIndex++;
-            } else if (line.trim() === '') {
-              // Empty line could be between paragraphs within the footnote
-              // Check if the next line is also indented
+          } else if (line.trim() === '') {
               if (lineIndex + 1 < textLines.length && indentRegex.test(textLines[lineIndex + 1])) {
-                // This empty line is within the footnote - add a paragraph break
                 def.continuationLines.push('\n\n'); // Add paragraph breaks instead of line breaks
                 lineIndexesToRemove.push(lineIndex);
                 lineIndex++;
-              } else {
-                // This empty line marks the end of the footnote
-                break;
-              }
             } else {
-              // No more continuation for this footnote
-              break;
+                break;
             }
+          } else {
+              break;
           }
+        }
 
-          // Now build the full footnote content
           var fullContent = def.content;
 
           if (def.continuationLines.length > 0) {
-            // Convert the continuation lines into proper paragraphs
             var paragraphs = [];
             var currentParagraph = [];
 
-            // Process each line
             def.continuationLines.forEach(function(line) {
               if (line === '\n\n') {
-                // This is a paragraph break
                 if (currentParagraph.length > 0) {
                   paragraphs.push(currentParagraph.join(' '));
                   currentParagraph = [];
-                }
-              } else {
-                // Add to current paragraph
-                currentParagraph.push(line);
               }
-            });
+            } else {
+                currentParagraph.push(line);
+            }
+          });
 
-            // Add the last paragraph if not empty
             if (currentParagraph.length > 0) {
               paragraphs.push(currentParagraph.join(' '));
-            }
-
-            // If we have paragraphs, format them properly
-            if (paragraphs.length > 0) {
-              fullContent = '<p>' + fullContent + '</p><p>' + paragraphs.join('</p><p>') + '</p>';
-            } else {
-              fullContent = '<p>' + fullContent + '</p>';
-            }
-          } else {
-            // Just wrap the single line in paragraph tags
-            fullContent = '<p>' + fullContent + '</p>';
           }
 
-          // Store in our global footnote map
-          footnoteMap[id] = fullContent;
-        });
+            if (paragraphs.length > 0) {
+              fullContent = '<p>' + fullContent + '</p><p>' + paragraphs.join('</p><p>') + '</p>';
+          } else {
+              fullContent = '<p>' + fullContent + '</p>';
+          }
+        } else {
+            fullContent = '<p>' + fullContent + '</p>';
+        }
 
-        // Remove all footnote-related lines from the text
+          footnoteMap[id] = fullContent;
+      });
+
         var newTextLines = textLines.filter(function(_, index) {
           return !lineIndexesToRemove.includes(index);
-        });
+      });
 
         var result = newTextLines.join('\n');
         
-        // Restore code blocks
         result = result.replace(/CODE_BLOCK_(\d+)/g, function(match, index) {
           return codeBlocks[parseInt(index)];
-        });
+      });
         
         return result;
-      }
-    },
-    // Step 3: replace footnote references in the text
-    {
+    }
+  },
+ {
       type: 'lang',
       filter: function(text) {
-        // Extract and save code blocks first
         var codeBlocks = [];
         var processedText = text.replace(/```[\s\S]*?```|`[^`]*`/g, function(match) {
           codeBlocks.push(match);
           return "CODE_BLOCK_" + (codeBlocks.length - 1);
-        });
+      });
         
-        // Replace footnote references, but skip code blocks
         processedText = processedText.replace(/\[\^([\d\w]+)\]/g, function(str, name) {
-          // Skip if this is part of a code block placeholder
           if (/CODE_BLOCK_\d+/.test(str)) return str;
           return '<a id="footnote-ref-' + name + '" href="#footnote-' + name + '" class="footnote-ref">[' + name + ']</a>';
-        });
+      });
         
-        // Restore code blocks
         return processedText.replace(/CODE_BLOCK_(\d+)/g, function(match, index) {
           return codeBlocks[parseInt(index)];
-        });
-      }
-    },
-    // Step 4: append all collected footnotes to the end of the document
-    {
+      });
+    }
+  },
+ {
       type: 'output',
       filter: function(html) {
         if (Object.keys(footnoteMap).length === 0) {
           return html; // No footnotes to add
-        }
+      }
 
         var footnotesHtml = '<div class="footnotes-section">';
         footnotesHtml += '<hr>';
         footnotesHtml += '<h2>Footnotes</h2>';
         footnotesHtml += '<div class="footnotes">';
 
-        // Sort footnotes by name/number if they are numeric
         var footnoteNames = Object.keys(footnoteMap);
         footnoteNames.sort(function(a, b) {
           if (!isNaN(a) && !isNaN(b)) {
             return parseInt(a) - parseInt(b);
-          }
+        }
           return a.localeCompare(b);
-        });
+      });
 
-        // Create the HTML for each footnote
         for (var i = 0; i < footnoteNames.length; i++) {
           var name = footnoteNames[i];
           var content = footnoteMap[name];
@@ -226,26 +184,46 @@ function footnotes(options) {
                             '<a href="#footnote-ref-' + name + '" class="footnote-backref">[' + name + ']</a> ' +
                             '<span class="footnote-content">' + content + '</span>' +
                           '</div>';
-        }
+      }
 
         footnotesHtml += '</div></div>';
         return html + footnotesHtml;
-      }
     }
+}
   ];
 }
   </script>
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
-    }
+}
     
     :root {
       --primary-color: #3498db;
+      --primary-hover: #0366d6;
       --background-color: #f8f9fa;
       --border-color: #dee2e6;
+      --border-light: #dfe2e5;
+      --border-dark: #444;
       --text-color: #343a40;
-    }
+      --text-muted: #6a737d;
+      --text-light: #B0B8C1;
+      --code-bg: #f6f8fa;
+      --code-bg-dark: #2d2d2d;
+      --shadow-light: rgba(0,0,0,0.02);
+      --shadow-dark: rgba(255,255,255,0.05);
+      --code-inline-bg: rgba(27,31,35,0.05);
+      --warning-bg: rgba(255, 129, 40, 0.25);
+      --success-bg: #4CAF50;
+      --radius-sm: 3px;
+      --radius: 4px;
+      --spacing-xs: 5px;
+      --spacing-sm: 8px;
+      --spacing: 10px;
+      --spacing-md: 16px;
+      --spacing-lg: 20px;
+      --spacing-xl: 40px;
+}
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -254,7 +232,7 @@ function footnotes(options) {
       margin: 0;
       padding: 0;
       background-color: var(--background-color);
-    }
+}
     
     .container {
       max-width: 1200px;
@@ -262,7 +240,7 @@ function footnotes(options) {
       margin: 0 auto;
       padding: 20px;
       box-sizing: border-box;
-    }
+}
     
     .editor-container {
       display: flex;
@@ -271,19 +249,19 @@ function footnotes(options) {
       position: relative;
       justify-content: center;
       width: 100%;
-    }
+}
     
     .editor-pane, .preview-pane {
       flex: 1 1 0;
       border: 1px solid var(--border-color);
-      border-radius: 4px;
+      border-radius: var(--radius);
       background-color: white;
       overflow: auto;
       position: relative;
       min-width: 100px;
-    }
+}
     
-    /* Splitter styles */
+
     .splitter {
       width: 12px;
       background-color: var(--border-color);
@@ -296,12 +274,12 @@ function footnotes(options) {
       flex-shrink: 0;
       transition: background-color 0.2s;
       margin: 0 2px;
-    }
+}
     
     .splitter:hover, .splitter:focus {
       background-color: var(--primary-color);
       outline: none;
-    }
+}
     
     .splitter-handle {
       width: 4px;
@@ -310,27 +288,27 @@ function footnotes(options) {
       border-radius: 2px;
       opacity: 0.5;
       transition: opacity 0.2s, height 0.2s;
-    }
+}
     
     .splitter:hover .splitter-handle, .splitter:focus .splitter-handle {
       opacity: 1;
       height: 100px;
-    }
+}
     
     .splitter.dragging {
       background-color: var(--primary-color);
       opacity: 0.7;
-    }
+}
     
     .splitter.dragging .splitter-handle {
       opacity: 1;
       height: 120px;
-    }
+}
     
     .editor-pane {
       display: flex;
       flex-direction: column;
-    }
+}
     
     #markdown-editor {
       flex: 1;
@@ -341,11 +319,11 @@ function footnotes(options) {
       font-size: 14px;
       line-height: 1.6;
       outline: none;
-    }
+}
     
     .preview-pane {
       padding: 15px;
-    }
+}
     
     .toolbar {
       background-color: #f1f3f5;
@@ -353,79 +331,79 @@ function footnotes(options) {
       border-bottom: 1px solid var(--border-color);
       display: flex;
       gap: 10px;
-    }
+}
     
     .button {
       background-color: var(--primary-color);
       color: white;
       border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--radius);
       cursor: pointer;
       font-size: 14px;
       transition: background-color 0.2s;
-    }
+}
     
     .button:hover {
       background-color: #2980b9;
-    }
+}
     
-    /* Input styling */
+
     input[type="text"] {
-      padding: 8px;
+      padding: var(--spacing-sm);
       border: 1px solid var(--border-color);
-      border-radius: 4px;
+      border-radius: var(--radius);
       background-color: white;
       color: #333;
-    }
+}
     
-    /* Checkbox container */
+
     .checkbox-container {
       display: flex;
       align-items: center;
       margin-left: 10px;
-    }
+}
     
     .checkbox-container input[type="checkbox"] {
       margin-right: 5px;
-    }
+}
     
-    /* Dark mode button adjustments */
+
     .dark-mode .button {
       background-color: #2c5282; /* Darker blue */
       color: #f0f4f8; /* Off-white for better contrast */
-    }
+}
     
     .dark-mode .button:hover {
       background-color: #3a6ea5; /* Slightly lighter when hovered */
-    }
+}
     
-    /* Dark mode input field */
+
     .dark-mode input[type="text"] {
       background-color: #3d3d3d;
       color: #f0f4f8;
       border-color: #555;
-    }
+}
     
-    /* Custom scrollbar for dark mode */
+
     .dark-mode *::-webkit-scrollbar {
       width: 12px;
       height: 12px;
-    }
+}
     
     .dark-mode *::-webkit-scrollbar-track {
       background: #2d2d2d;
-    }
+}
     
     .dark-mode *::-webkit-scrollbar-thumb {
       background-color: #555;
       border-radius: 6px;
       border: 3px solid #2d2d2d;
-    }
+}
     
     .dark-mode *::-webkit-scrollbar-thumb:hover {
       background-color: #666;
-    }
+}
     
     .action-bar {
       margin-top: 20px;
@@ -434,157 +412,157 @@ function footnotes(options) {
       justify-content: flex-start;
       align-items: center;
       flex-wrap: wrap;
-    }
+}
     
-    /* Custom CSS for the HTML preview */
+
     .preview-content {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       line-height: 1.6;
-    }
+}
     
     .preview-content pre {
-      background-color: #f6f8fa;
-      padding: 12px;
+      background-color: var(--code-bg);
+      padding: var(--spacing-sm) var(--spacing);
       overflow: auto;
-      border-radius: 3px;
+      border-radius: var(--radius-sm);
       font-size: 0.95em;
       line-height: 1.3;
-    }
+}
     
     .preview-content code {
-      border-radius: 3px;
+      border-radius: var(--radius-sm);
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       font-size: 0.95em;
-    }
+}
     
-    /* Only apply background to inline code, not code inside pre blocks */
+
     .preview-content :not(pre) > code {
-      background-color: rgba(27,31,35,0.05);
-    }
+      background-color: var(--code-inline-bg);
+}
     
     .preview-content table {
       border-collapse: collapse;
       width: 100%;
       margin-bottom: 16px;
-    }
+}
     
     .preview-content table, .preview-content th, .preview-content td {
-      border: 1px solid #dfe2e5;
-      padding: 8px;
-    }
+      border: 1px solid var(--border-light);
+      padding: var(--spacing-sm);
+}
     
     .preview-content img {
       max-width: 100%;
-    }
+}
     
     .preview-content blockquote {
-      border-left: 4px solid #dfe2e5;
-      padding-left: 16px;
-      color: #6a737d;
+      border-left: 4px solid var(--border-light);
+      padding-left: var(--spacing-md);
+      color: var(--text-muted);
       margin-left: 0;
-    }
+}
     
-    /* Footnote styles */
+
     .footnote {
-      margin-top: 8px;
-      margin-bottom: 8px;
-      padding: 5px 10px;
+      margin-top: var(--spacing-sm);
+      margin-bottom: var(--spacing-sm);
+      padding: var(--spacing-xs) var(--spacing);
       font-size: 0.9em;
-      color: #6a737d;
-      background-color: rgba(0,0,0,0.02);
-      border-radius: 4px;
-    }
+      color: var(--text-muted);
+      background-color: var(--shadow-light);
+      border-radius: var(--radius);
+}
 
     .footnote .footnote-content {
       display: inline-block;
       vertical-align: top;
-    }
+}
 
     .footnote .footnote-content p {
       margin: 0;
-    }
+}
 
     .footnote .footnote-content p + p {
       margin-top: 0.8em;
-    }
+}
 
     .dark-mode .footnote {
-      color: #B0B8C1;
-      background-color: rgba(255,255,255,0.05);
-    }
+      color: var(--text-light);
+      background-color: var(--shadow-dark);
+}
 
     .footnote a {
       text-decoration: none;
-    }
+}
 
-    /* Inline footnote references */
+
     .footnote-ref {
       text-decoration: none;
       display: inline;
       font-size: 0.75em;
       vertical-align: super;
       line-height: normal;
-      color: var(--primary-color);
+      color: var(--primary-hover);
       padding: 0 1px;
-    }
+}
 
-    /* Back references in footnotes */
+
     .footnote-backref {
       text-decoration: none;
       font-size: 0.85em;
-      color: var(--primary-color);
-      margin-right: 4px;
+      color: var(--primary-hover);
+      margin-right: var(--spacing-xs);
       font-weight: bold;
-    }
+}
 
-    /* Footnotes section at the bottom */
+
     .footnotes-section {
-      margin-top: 40px;
-    }
+      margin-top: var(--spacing-xl);
+}
 
     .footnotes-section hr {
       border: none;
-      border-top: 1px solid #dfe2e5;
-      margin: 30px 0 20px 0;
-    }
+      border-top: 1px solid var(--border-light);
+      margin: 30px 0 var(--spacing-lg) 0;
+}
 
     .dark-mode .footnotes-section hr {
-      border-top: 1px solid #444;
-    }
+      border-top: 1px solid var(--border-dark);
+}
 
     .footnotes-section h2 {
       font-size: 1.2em;
-      margin-bottom: 20px;
-    }
+      margin-bottom: var(--spacing-lg);
+}
 
     .footnotes {
       display: flex;
       flex-direction: column;
-      gap: 5px;
-    }
+      gap: var(--spacing-xs);
+}
     
-    /* Print-specific styles */
+
     @media print {
       .editor-pane, .toolbar, .action-bar, .splitter, .mobile-tabs {
         display: none !important;
-      }
+    }
       
       .editor-container {
         display: block;
         height: auto;
-      }
+    }
       
-      /* Always show preview pane when printing, regardless of mobile tab state */
+  
       .preview-pane {
         display: block !important;
         width: 100% !important;
-      }
+    }
       
-      /* Reset any mobile view classes that might hide content */
+  
       .container.mobile-view-editor .preview-pane,
       .container.mobile-view-preview .preview-pane {
         display: block !important;
-      }
+    }
       
       .preview-pane {
         border: none;
@@ -592,39 +570,39 @@ function footnotes(options) {
         overflow: visible;
         color: black !important;
         background-color: white !important;
-      }
+    }
       
-      /* Reset all dark mode styles for printing */
+  
       body, .preview-content {
         background-color: white !important;
         color: black !important;
-      }
+    }
       
-      /* Ensure links print with readable colors */
+  
       .preview-content a {
         color: #0366d6 !important;
         text-decoration: underline !important;
-      }
+    }
       
-      /* Prevent page breaks inside paragraphs and list items */
+  
       p, li, h1, h2, h3, h4, h5, h6, table, blockquote {
         page-break-inside: avoid;
         color: black !important;
-      }
+    }
       
-      /* Always break page after these elements */
+  
       h1, h2 {
         page-break-after: avoid;
         break-after: avoid;
-      }
+    }
       
-      /* Avoid having orphaned headings at bottom of page */
+  
       h1, h2, h3, h4, h5, h6 {
         page-break-after: avoid;
         break-after: avoid;
-      }
+    }
       
-      /* Keep code blocks together */
+  
       pre {
         page-break-inside: avoid;
         break-inside: avoid;
@@ -633,160 +611,160 @@ function footnotes(options) {
         font-size: 0.9em !important;
         line-height: 1.3 !important;
         padding: 12px !important;
-      }
+    }
       
       code {
         background-color: rgba(27,31,35,0.05) !important;
         color: #24292e !important;
         font-size: 0.9em !important;
-      }
+    }
       
-      /* Keep tables together */
+  
       table {
         page-break-inside: avoid;
         break-inside: avoid;
         color: black !important;
-      }
+    }
       
-      /* Print styles for footnotes */
+  
       .footnotes-section hr {
         border-top: 1px solid #000;
-      }
+    }
 
       .footnotes-section h2 {
         font-size: 14pt;
         margin-bottom: 10pt;
-      }
+    }
 
       .footnote {
         font-size: 10pt;
         break-inside: avoid;
         background-color: transparent !important;
         color: black !important;
-      }
+    }
       
       .footnote-ref, .footnote-backref {
         color: black !important;
-      }
+    }
       
-      /* Ensure page breaks have adequate spacing */
+  
       @page {
         margin: 2cm;
-      }
     }
+}
     
-    /* Dark mode */
+
     .dark-mode {
       --primary-color: #61dafb;
       --background-color: #1a1a1a;
       --border-color: #444;
       --text-color: #f1f3f5;
-    }
+}
     
     .dark-mode .editor-pane,
     .dark-mode .preview-pane {
       background-color: #2d2d2d;
       color: var(--text-color);
-    }
+}
     
     .dark-mode #markdown-editor {
       background-color: #2d2d2d;
       color: var(--text-color);
-    }
+}
     
     .dark-mode .toolbar {
       background-color: #333;
-    }
+}
     
-    /* Fix dark mode for code blocks */
+
     .dark-mode .preview-content pre {
       background-color: #222;
       border: 1px solid var(--border-color);
       font-size: 0.9em;
       line-height: 1.3;
-    }
+}
     
     .dark-mode .preview-content code {
       color: #e6e6e6;
       font-size: 0.9em;
-    }
+}
     
-    /* Only apply background to inline code in dark mode */
+
     .dark-mode .preview-content :not(pre) > code {
       background-color: #333;
-    }
+}
     
-    /* Improved link colors for dark mode */
+
     .dark-mode .preview-content a {
       color: #78c8ff; /* More legible blue for dark mode */
       text-decoration: underline;
       border-bottom: none;
       padding-bottom: 0;
       font-weight: normal;
-    }
+}
     
-    /* Ensure good contrast for both modes */
+
     .preview-content a {
       color: #0366d6; /* GitHub-style blue for light mode */
       text-decoration: underline;
       border-bottom: none;
       padding-bottom: 0;
       font-weight: normal;
-    }
+}
     
-    /* Checkbox stylings for dark mode */
+
     .dark-mode .checkbox-container {
       color: var(--text-color);
-    }
+}
     
-    /* Theme Switch Styles */
-    /* Indent selector styles */
+
+
     .flavor-selector {
       display: flex;
       align-items: center;
       margin: 0 10px;
       padding: 0 5px;
-    }
+}
     
-    /* Adjust spacing for mobile */
+
     @media (max-width: 768px) {
       .flavor-selector {
         margin: 0 5px;
-      }
+    }
       
       .flavor-selector label {
         font-size: 12px;
-      }
     }
+}
     
     .flavor-selector label {
       margin-right: 5px;
       font-size: 14px;
-    }
+}
     
     .flavor-selector select {
       padding: 3px 6px;
       border: 1px solid var(--border-color);
-      border-radius: 4px;
+      border-radius: var(--radius);
       background-color: white;
       font-size: 14px;
-    }
+}
     
     .dark-mode .flavor-selector select {
       background-color: #3d3d3d;
       color: var(--text-color);
       border-color: #555;
-    }
+}
     
     .dark-mode .flavor-selector label {
       color: var(--text-color);
-    }
+}
     
     .theme-switch-wrapper {
       display: flex;
       align-items: center;
       margin-left: auto;
-    }
+}
     
     .theme-switch {
       position: relative;
@@ -794,14 +772,14 @@ function footnotes(options) {
       height: 26px;
       width: 60px;
       vertical-align: middle;
-    }
+}
     
     .theme-switch input {
       opacity: 0;
       width: 0;
       height: 0;
       position: absolute;
-    }
+}
     
     .theme-switch-label {
       position: absolute;
@@ -816,7 +794,7 @@ function footnotes(options) {
       border-radius: 100px;
       cursor: pointer;
       transition: all 0.3s ease;
-    }
+}
     
     .theme-switch-toggle {
       position: absolute;
@@ -827,15 +805,15 @@ function footnotes(options) {
       border-radius: 62px;
       background: white;
       transition: all 0.3s ease;
-    }
+}
     
     input:checked + .theme-switch-label .theme-switch-toggle {
       transform: translateX(34px);
-    }
+}
     
     input:checked + .theme-switch-label {
       background-color: #333;
-    }
+}
     
     .theme-icon {
       position: absolute;
@@ -843,40 +821,40 @@ function footnotes(options) {
       font-size: 16px;
       transition: all 0.3s ease;
       line-height: 20px;
-    }
+}
     
     .theme-icon.light {
       right: 8px;
       opacity: 0;
-    }
+}
     
     .theme-icon.dark {
       left: 8px;
       opacity: 1;
-    }
+}
     
     input:checked + .theme-switch-label .theme-icon.light {
       opacity: 0;
-    }
+}
     
     input:checked + .theme-switch-label .theme-icon.dark {
       opacity: 1;
-    }
+}
     
     input:not(:checked) + .theme-switch-label .theme-icon.light {
       opacity: 1;
-    }
+}
     
     input:not(:checked) + .theme-switch-label .theme-icon.dark {
       opacity: 0;
-    }
+}
     
-    /* Light mode switch styling */
+
     body:not(.dark-mode) .theme-switch-label {
       background-color: #e6e6e6;
-    }
+}
     
-    /* Keyboard shortcut styling */
+
     kbd {
       background-color: #f7f7f7;
       border: 1px solid #ccc;
@@ -891,16 +869,16 @@ function footnotes(options) {
       padding: 3px 6px;
       margin: 0 2px;
       vertical-align: middle;
-    }
+}
     
     .dark-mode kbd {
       background-color: #444;
       border-color: #666;
       color: #f7f7f7;
       box-shadow: 0 1px 0 rgba(255,255,255,0.2);
-    }
+}
     
-    /* General link styling for non-preview areas */
+
     a {
       color: #0366d6; /* GitHub-style blue for light mode */
       text-decoration: none;
@@ -908,35 +886,35 @@ function footnotes(options) {
       padding-bottom: 1px;
       font-weight: 500;
       transition: color 0.2s, border-bottom 0.2s;
-    }
+}
     
     a:hover {
       color: #0550ae;
       border-bottom: 1px solid rgba(3, 102, 214, 0.7);
-    }
+}
     
     a:active {
       color: #032f70;
       border-bottom: 1px solid #0366d6;
-    }
+}
     
-    /* Links in dark mode */
+
     .dark-mode a {
       color: #78c8ff; /* More legible blue for dark mode */
       border-bottom: 1px solid rgba(120, 200, 255, 0.3);
-    }
+}
     
     .dark-mode a:hover {
       color: #94d3ff;
       border-bottom: 1px solid rgba(120, 200, 255, 0.7);
-    }
+}
     
     .dark-mode a:active {
       color: #60b3ff;
       border-bottom: 1px solid #78c8ff;
-    }
+}
     
-    /* Modal styling */
+
     .modal {
       display: none; /* Hidden by default, will be overridden when shown */
       position: fixed;
@@ -950,11 +928,11 @@ function footnotes(options) {
       align-items: center;
       justify-content: center;
       overflow: auto;
-    }
+}
     
     .modal[style*="display: block"] {
       display: flex !important; /* Override to flex when modal is shown */
-    }
+}
     
     .modal-content {
       position: relative;
@@ -969,56 +947,56 @@ function footnotes(options) {
       display: flex;
       flex-direction: column;
       outline: none; /* Remove default outline */
-    }
+}
     
-    /* Improved focus styles for modal elements */
+
     .modal a:focus,
     .modal button:focus,
     .modal input:focus {
       outline: 2px solid var(--primary-color);
       outline-offset: 2px;
       box-shadow: 0 0 0 4px rgba(255, 129, 40, 0.25);
-    }
+}
     
     .dark-mode .modal-content {
       background-color: #2d2d2d;
       color: var(--text-color);
-    }
+}
     
     .modal-header {
       padding: 15px 20px;
       border-bottom: 1px solid var(--border-color);
-    }
+}
     
     .modal-header h2 {
       margin: 0;
       font-size: 1.5rem;
-    }
+}
     
     .modal-body {
       padding: 20px;
       max-height: calc(90vh - 120px); /* Account for header and footer */
       overflow-y: auto;
       flex: 1;
-    }
+}
     
     .modal-footer {
       padding: 15px 20px;
       border-top: 1px solid var(--border-color);
       text-align: center;
-    }
+}
     
     @keyframes fadeIn {
       from {opacity: 0;}
       to {opacity: 1;}
-    }
+}
     
     @keyframes slideIn {
       from {transform: translateY(-20px); opacity: 0;}
       to {transform: translateY(0); opacity: 1;}
-    }
+}
     
-    /* Mobile Tab Styles */
+
     .mobile-tabs {
       display: none;
       width: 100%;
@@ -1026,7 +1004,7 @@ function footnotes(options) {
       margin: 0 0 10px 0;
       background-color: var(--background-color);
       border-bottom: 1px solid var(--border-color);
-    }
+}
     
     .tab-button {
       flex: 1;
@@ -1039,58 +1017,58 @@ function footnotes(options) {
       color: var(--text-color);
       cursor: pointer;
       transition: all 0.3s ease;
-    }
+}
     
     .tab-button.active {
       border-bottom: 3px solid var(--primary-color);
       color: var(--primary-color);
-    }
+}
     
     .dark-mode .tab-button {
       background-color: var(--background-color);
       color: var(--text-color);
-    }
+}
     
     .dark-mode .tab-button.active {
       color: var(--primary-color);
-    }
+}
     
-    /* Mobile adjustments */
+
     @media (max-width: 768px) {
       .mobile-tabs {
         display: flex;
-      }
+    }
       
       .editor-container {
         flex-direction: column;
         height: calc(100vh - 140px);
-      }
+    }
       
       .editor-pane, .preview-pane {
         flex: 1 1 auto !important;
         width: 100% !important;
         height: 100% !important;
-      }
+    }
       
-      /* Tab-based visibility */
+  
       .mobile-view-editor .preview-pane {
         display: none !important;
-      }
+    }
       
       .mobile-view-preview .editor-pane {
         display: none !important;
-      }
+    }
       
-      /* Hide splitter on mobile */
+  
       .splitter {
         display: none !important;
-      }
+    }
       
       .action-bar {
         flex-direction: column;
         align-items: stretch;
-      }
     }
+}
   </style>
 </head>
 <body class="dark-mode">
@@ -1099,7 +1077,7 @@ function footnotes(options) {
     <div aria-live="polite" class="sr-only" id="sr-announcements" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;"></div>
     
     <!-- Mobile Tab Navigation (hidden on desktop) -->
-    <nav class="mobile-tabs" aria-label="Mobile navigation">
+    <nav class="mobile-tabs" >
       <button class="tab-button active" data-tab="editor">Editor</button>
       <button class="tab-button" data-tab="preview">Preview</button>
     </nav>
@@ -1109,12 +1087,12 @@ function footnotes(options) {
         <header class="toolbar">
           <button class="button" id="clear-btn">Clear</button>
           <button class="button" id="sample-btn">Load Sample</button>
-          <button class="button" id="info-btn" aria-label="Information">❓</button>
+          <button class="button" id="info-btn" >❓</button>
           
           <!-- Markdown flavor selector -->
           <div class="flavor-selector">
             <label for="flavor">Flavor:</label>
-            <select id="flavor" aria-label="Select markdown flavor">
+            <select id="flavor" >
               <option value="github">GitHub</option>
               <option value="vanilla">CommonMark</option>
             </select>
@@ -1131,13 +1109,13 @@ function footnotes(options) {
             </div>
           </div>
         </header>
-        <textarea id="markdown-editor" aria-label="Markdown editor" placeholder="Type or paste your Markdown here..."></textarea>
+        <textarea id="markdown-editor"  placeholder="Type or paste your Markdown here..."></textarea>
       </div>
-      <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" aria-valuenow="50" aria-controls="markdown-editor html-preview" aria-label="Resize panels" tabindex="0">
+      <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" aria-valuenow="50" aria-controls="markdown-editor html-preview"  tabindex="0">
         <div class="splitter-handle"></div>
       </div>
       <div class="preview-pane">
-        <div id="html-preview" class="preview-content" aria-label="HTML preview" role="region" aria-live="polite"></div>
+        <div id="html-preview" class="preview-content"  role="region" aria-live="polite"></div>
       </div>
     </div>
     
@@ -1151,23 +1129,16 @@ function footnotes(options) {
   </main>
   
   <script>
-    // Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
           .then(registration => {
-            console.log('ServiceWorker registration successful with scope:', registration.scope);
             
-            // Check for service worker updates
             registration.addEventListener('updatefound', () => {
               const newWorker = registration.installing;
-              console.log('New service worker installing:', newWorker);
               
-              // Listen for state changes on the new worker
               newWorker.addEventListener('statechange', () => {
-                console.log('Service worker state changed to:', newWorker.state);
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // Show notification that an update is available
                   const updateNotification = document.createElement('div');
                   updateNotification.style.position = 'fixed';
                   updateNotification.style.bottom = '20px';
@@ -1181,33 +1152,27 @@ function footnotes(options) {
                   updateNotification.innerHTML = 'App update available! <button id="update-app" style="background:white;color:#FF8128;border:none;padding:5px 10px;margin-left:10px;border-radius:3px;cursor:pointer;">Update Now</button>';
                   document.body.appendChild(updateNotification);
                   
-                  // Handle update button click
                   document.getElementById('update-app').addEventListener('click', () => {
                     newWorker.postMessage({ action: 'skipWaiting' });
                     updateNotification.remove();
                     window.location.reload();
-                  });
-                }
-              });
+                });
+              }
             });
-          })
-          .catch(error => {
-            console.error('ServiceWorker registration failed:', error);
           });
-        
-        // Handle controller change (after skipWaiting)
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('New service worker activated, reloading for changes');
+        })
+          .catch(error => {
         });
+        
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
       });
-    }
+    });
+}
     
     document.addEventListener('DOMContentLoaded', function() {
-      // Set mobile view class on container if needed (mobile-first approach)
       if (window.innerWidth <= 768) {
         document.querySelector('.container').classList.add('mobile-view-editor');
-      }
-      // Elements
+    }
       const markdownEditor = document.getElementById('markdown-editor');
       const htmlPreview = document.getElementById('html-preview');
       const copyBtn = document.getElementById('copy-btn');
@@ -1223,7 +1188,6 @@ function footnotes(options) {
       const closeModalBtn = document.getElementById('close-modal-btn');
       const flavorSelector = document.getElementById('flavor');
       
-      // Create and set up the persistent clean iframe for copy operations
       const cleanCopyIframe = document.createElement('iframe');
       cleanCopyIframe.style.position = 'absolute';
       cleanCopyIframe.style.left = '-9999px';
@@ -1238,7 +1202,6 @@ function footnotes(options) {
       cleanCopyIframe.setAttribute('tabindex', '-1'); // Make sure it's not in the tab order
       document.body.appendChild(cleanCopyIframe);
       
-      // Initialize the iframe document with base HTML and CSS
       const iframeDoc = cleanCopyIframe.contentDocument || cleanCopyIframe.contentWindow.document;
       iframeDoc.open();
       iframeDoc.write(`
@@ -1247,71 +1210,71 @@ function footnotes(options) {
           <head>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.5/purify.min.js"><\/script>
             <style>
-              /* Base styles */
+          
               html, body {
                 color: black !important;
                 background-color: white !important;
                 font-family: Aptos, Calibri, "Helvetica", Arial, sans-serif;
                 font-size: 12pt !important;
-              }
+            }
               
-              /* Ensure all elements use light mode colors and consistent fonts */
+          
               * {
                 color: black !important;
                 background-color: transparent !important;
                 font-family: Aptos, Calibri, "Helvetica", Arial, sans-serif;
                 font-size: 12pt !important;
-              }
+            }
               
-              /* Typography */
+          
               h1 {
                 font-size: 18pt !important;
                 margin-top: 1em;
                 margin-bottom: 0.5em;
                 font-weight: bold;
-              }
+            }
               
               h2 {
                 font-size: 16pt !important;
                 margin-top: 1em;
                 margin-bottom: 0.5em;
                 font-weight: bold;
-              }
+            }
               
               h3 {
                 font-size: 14pt !important;
                 margin-top: 1em;
                 margin-bottom: 0.5em;
                 font-weight: bold;
-              }
+            }
               
               h4, h5, h6 {
                 font-size: 12pt !important;
                 margin-top: 1em;
                 margin-bottom: 0.5em;
                 font-weight: bold;
-              }
+            }
               
               p {
                 margin-bottom: 1em;
                 font-size: 12pt !important;
-              }
+            }
               
-              /* Lists */
+          
               ul, ol {
                 margin-left: 2em;
                 margin-bottom: 1em;
-              }
+            }
               
               li {
                 font-size: 12pt !important;
-              }
+            }
               
-              /* Code blocks - ensure monospace */
+          
               pre, code {
                 font-family: Consolas, "Courier New", Courier, monospace !important;
                 font-size: 10pt !important;
-              }
+            }
               
               pre {
                 margin: 1em 0;
@@ -1320,64 +1283,64 @@ function footnotes(options) {
                 background-color: #f5f5f5 !important;
                 white-space: pre-wrap;
                 line-height: 1.3 !important;
-              }
+            }
               
-              /* Tables */
+          
               table {
                 border-collapse: collapse;
                 width: 100%;
                 margin: 1em 0;
-              }
+            }
               
               table, th, td {
                 border: 1px solid #ddd;
-              }
+            }
               
               th, td {
                 padding: 0.5em;
                 text-align: left;
                 font-size: 12pt !important;
-              }
+            }
               
-              /* Links */
+          
               a {
                 color: #0000EE !important;
                 text-decoration: underline;
                 font-size: 12pt !important;
-              }
+            }
               
-              /* Blockquotes */
+          
               blockquote {
                 border-left: 2px solid #ddd;
                 padding-left: 1em;
                 margin-left: 1em;
                 color: #555 !important;
-              }
+            }
               
               blockquote * {
                 font-size: 12pt !important;
-              }
+            }
               
-              /* Footnotes */
+          
               .footnote-ref {
                 vertical-align: super;
                 font-size: 10pt !important;
                 color: #0000EE !important;
-              }
+            }
               
               .footnote {
                 margin: 1em 0;
                 padding: 0.5em;
                 border-left: 2px solid #ddd;
-              }
+            }
               
               .footnote * {
                 font-size: 12pt !important;
-              }
+            }
               
               .footnote-backref {
                 color: #0000EE !important;
-              }
+            }
             </style>
           </head>
           <body>
@@ -1387,7 +1350,6 @@ function footnotes(options) {
       `);
       iframeDoc.close();
       
-      // Default to dark mode, only apply light mode if explicitly set in localStorage
       document.body.classList.add('dark-mode');
       themeSwitch.checked = true;
       
@@ -1395,193 +1357,165 @@ function footnotes(options) {
       if (storedTheme === 'false') {
         document.body.classList.remove('dark-mode');
         themeSwitch.checked = false;
-      }
+    }
       
-      // Get user's preferred markdown flavor from localStorage or default to 'github'
       const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
       
-      // Set the flavor selector to match the stored preference
       if (flavorSelector) {
         flavorSelector.value = preferredFlavor;
-      }
+    }
       
-      // We'll initialize the documentation example in the DOMContentLoaded handler below
       
-      // Initialize Showdown converter with appropriate flavor based on preference
       let converter = new showdown.Converter({
         extensions: [footnotes({indentSpaces: preferredFlavor === 'github' ? 2 : 4})]
-      });
+    });
       
-      // Set the Showdown flavor based on user preference
       converter.setFlavor(preferredFlavor);
       
       
-      // Update preview on input
       function updatePreview() {
         const markdown = markdownEditor.value;
         const html = converter.makeHtml(markdown);
         
-        // Sanitize the HTML using DOMPurify before inserting
         const sanitizedHtml = DOMPurify.sanitize(html, {
           USE_PROFILES: { html: true },
           ADD_ATTR: ['target']
-        });
+      });
         
-        // Update the visible preview
         htmlPreview.innerHTML = sanitizedHtml;
         
-        // Update the clean copy iframe with the same content
         updateCleanCopyIframe(sanitizedHtml);
-      }
+    }
       
-      // Function to update the clean copy iframe with content
       function updateCleanCopyIframe(html) {
         const iframeDoc = cleanCopyIframe.contentDocument || cleanCopyIframe.contentWindow.document;
         const contentElement = iframeDoc.getElementById('copy-content');
         
         if (contentElement) {
-          // The html parameter should already be sanitized, but we'll sanitize again
-          // just to be safe, using the iframe's DOMPurify instance
           const iframePurify = cleanCopyIframe.contentWindow.DOMPurify || DOMPurify;
           const sanitizedHtml = iframePurify.sanitize(html, {
             USE_PROFILES: { html: true },
             ADD_ATTR: ['target']
-          });
+        });
           
           contentElement.innerHTML = sanitizedHtml;
           
-          // Reset any remaining classes that might carry styling
           const allElements = iframeDoc.querySelectorAll('*');
           for (const el of allElements) {
             if (el.tagName !== 'HTML' && el.tagName !== 'HEAD' && el.tagName !== 'BODY' && el.tagName !== 'STYLE') {
               el.removeAttribute('class');
-            }
           }
         }
       }
+    }
       
-      // Splitter functionality
       function initMobileTabs() {
         const container = document.querySelector('.container');
         const tabButtons = document.querySelectorAll('.tab-button');
         const editorPane = document.querySelector('.editor-pane');
         const previewPane = document.querySelector('.preview-pane');
         
-        // Check if we're in mobile view
         const isMobileView = window.innerWidth <= 768;
         
-        // Load saved active tab or default to editor
         if (isMobileView) {
           const savedActiveTab = localStorage.getItem('activeMobileTab') || 'editor';
           setActiveTab(savedActiveTab);
-        }
+      }
         
-        // Add click event listeners to tab buttons
         tabButtons.forEach(button => {
           button.addEventListener('click', () => {
             const tabName = button.getAttribute('data-tab');
             setActiveTab(tabName);
             
-            // Save active tab preference
             localStorage.setItem('activeMobileTab', tabName);
             
-            // Make sure preview is updated when switching to preview tab
             if (tabName === 'preview') {
               updatePreview();
-            }
-          });
+          }
         });
+      });
         
-        // Function to set active tab
         function setActiveTab(tabName) {
-          // Remove active class from all buttons
           tabButtons.forEach(btn => btn.classList.remove('active'));
           
-          // Add active class to clicked button
           const activeButton = document.querySelector(`.tab-button[data-tab="${tabName}"]`);
           if (activeButton) {
             activeButton.classList.add('active');
-          }
+        }
           
-          // Update container class to control visibility
           container.classList.remove('mobile-view-editor', 'mobile-view-preview');
           container.classList.add(`mobile-view-${tabName}`);
-        }
+      }
         
-        // Set initial tab based on screen size
         window.addEventListener('resize', () => {
           const currentIsMobileView = window.innerWidth <= 768;
           
           if (currentIsMobileView && !isMobileView) {
-            // Switched to mobile view
             const savedActiveTab = localStorage.getItem('activeMobileTab') || 'editor';
             setActiveTab(savedActiveTab);
-          } else if (!currentIsMobileView && isMobileView) {
-            // Switched to desktop view - remove mobile classes
+        } else if (!currentIsMobileView && isMobileView) {
             container.classList.remove('mobile-view-editor', 'mobile-view-preview');
-          }
-        });
-      }
+        }
+      });
+    }
       
-      // Global keyboard shortcuts object
       const keyboardShortcuts = {
         editor: {
           key: 'e',
           modifier: 'Alt',
           description: 'Focus the editor',
           action: () => markdownEditor.focus()
-        },
+      },
         preview: {
           key: 'p',
           modifier: 'Alt',
           description: 'Focus the preview',
           action: () => document.getElementById('html-preview').focus()
-        },
+      },
         splitter: {
           key: 's',
           modifier: 'Alt',
           description: 'Focus the splitter',
           action: () => document.getElementById('splitter').focus()
-        },
+      },
         copy: {
           key: 'c',
           modifier: 'Alt',
           description: 'Copy HTML to clipboard',
           action: () => copyHtml()
-        },
+      },
         download: {
           key: 'd',
           modifier: 'Alt',
           description: 'Download HTML',
           action: () => downloadHTML()
-        },
+      },
         clear: {
           key: 'x',
           modifier: 'Alt',
           description: 'Clear editor content',
           action: () => { markdownEditor.value = ''; updatePreview(); }
-        },
+      },
         print: {
           key: 'r',
           modifier: 'Alt',
           description: 'Print document',
           action: () => { updatePreview(); setTimeout(() => window.print(), 100); }
-        },
+      },
         help: {
           key: 'h',
           modifier: 'Alt',
           description: 'Open help dialog',
           action: () => openModal()
-        },
+      },
         theme: {
           key: 't',
           modifier: 'Alt',
           description: 'Toggle theme',
           action: () => toggleTheme()
-        }
-      };
+      }
+    };
       
-      // Define variables in a higher scope so all functions can access them
       let splitterIsDragging = false;
       let splitterElement;
       let editorPaneElement;
@@ -1590,35 +1524,27 @@ function footnotes(options) {
 
       function initResizablePanels() {
         try {
-          // Store references to DOM elements in the higher-scoped variables
           splitterElement = document.getElementById('splitter');
           editorPaneElement = document.querySelector('.editor-pane');
           previewPaneElement = document.querySelector('.preview-pane');
           editorContainerElement = document.querySelector('.editor-container');
           
-          // Check if we're in mobile view
           const isMobileView = window.innerWidth <= 768;
           
-          // Apply default values and update aria attributes initially
-          // Always apply the position from localStorage or default to 50%
           const initPosition = localStorage.getItem('splitterPosition') || '50';
           const percentage = parseFloat(initPosition);
           
-          // Validate the position
           if (!isNaN(percentage) && percentage >= 20 && percentage <= 80) {
             editorPaneElement.style.flex = `0 0 ${percentage}%`;
             previewPaneElement.style.flex = `0 0 ${100 - percentage}%`;
-          } else {
-            // Use 50% as fallback
+        } else {
             editorPaneElement.style.flex = '0 0 50%';
             previewPaneElement.style.flex = '0 0 50%';
             localStorage.setItem('splitterPosition', '50');
-          }
+        }
           splitterElement.setAttribute('aria-valuenow', percentage);
           
-          // For mobile view, we use a different storage key
           if (isMobileView) {
-            // Check if we have a mobile-specific saved position
             const mobileSavedPosition = localStorage.getItem('splitterPositionMobile');
             if (mobileSavedPosition) {
               const mobPercentage = parseFloat(mobileSavedPosition);
@@ -1626,28 +1552,21 @@ function footnotes(options) {
                 editorPaneElement.style.flex = `0 0 ${mobPercentage}%`;
                 previewPaneElement.style.flex = `0 0 ${100 - mobPercentage}%`;
                 splitterElement.setAttribute('aria-valuenow', mobPercentage);
-              }
             }
           }
-        } catch (error) {
-          console.error('Error initializing splitter:', error);
-          // Apply default values if initialization fails
+        }
+      } catch (error) {
           try {
-            // Use the global element references
             editorPaneElement.style.flex = '0 0 50%';
             previewPaneElement.style.flex = '0 0 50%';
-          } catch (e) {
-            console.error('Failed to apply fallback splitter values:', e);
-          }
+        } catch (e) {
         }
+      }
         
-        // Add window resize listener to adjust layout
         window.addEventListener('resize', function() {
           try {
-            // Use the global element references
             const currentIsMobileView = window.innerWidth <= 768;
             
-            // Only update layout if switched to desktop view
             if (!currentIsMobileView) {
               const savedSplitterPosition = localStorage.getItem('splitterPosition') || '50';
               const percentage = parseFloat(savedSplitterPosition);
@@ -1655,409 +1574,225 @@ function footnotes(options) {
                 editorPaneElement.style.flex = `0 0 ${percentage}%`;
                 previewPaneElement.style.flex = `0 0 ${100 - percentage}%`;
                 splitterElement.setAttribute('aria-valuenow', percentage);
-                console.log(`Window resize: Updated splitter to ${percentage}%`);
-              } else {
-                // Fall back to 50% if invalid value
+            } else {
                 editorPaneElement.style.flex = `0 0 50%`;
                 previewPaneElement.style.flex = `0 0 50%`;
                 splitterElement.setAttribute('aria-valuenow', 50);
-              }
             }
-          } catch (error) {
-            console.error('Error in window resize handler:', error);
           }
-        });
+        } catch (error) {
+        }
+      });
         
-        // Mouse down event on splitter
         splitterElement.addEventListener('mousedown', function(e) {
           e.preventDefault();
           splitterIsDragging = true;
           splitterElement.classList.add('dragging');
-          console.log('Mouse drag started');
           
-          // Prevent text selection while dragging
           document.body.style.userSelect = 'none';
-        });
+      });
         
-        // Mouse move event
         document.addEventListener('mousemove', function(e) {
           try {
             if (!splitterIsDragging) return;
             
-            // Use the global splitterElement
             const containerRect = editorContainerElement.getBoundingClientRect();
             
-            // Check if we're in mobile view (width <= 768px)
             const isMobileView = window.innerWidth <= 768;
             
             if (isMobileView) {
-              // In mobile view, handle vertical dragging
               const containerHeight = containerRect.height;
               const mousePosition = e.clientY - containerRect.top;
               
-              // Calculate percentage for editor height (constrained between 20% and 80%)
               const percentage = Math.min(Math.max((mousePosition / containerHeight) * 100, 20), 80);
               
-              // Apply new heights using flex-basis
               editorPaneElement.style.flex = `0 0 ${percentage}%`;
               previewPaneElement.style.flex = `0 0 ${100 - percentage}%`;
               
-              // Update aria-valuenow attribute
               splitterElement.setAttribute('aria-valuenow', percentage);
               
-              // Save to localStorage with a different key for mobile
               localStorage.setItem('splitterPositionMobile', percentage);
-            } else {
-              // Desktop view - horizontal dragging
+          } else {
               const containerWidth = containerRect.width;
               const mousePosition = e.clientX - containerRect.left;
               
-              // Calculate percentage (constrained between 20% and 80%)
               const percentage = Math.min(Math.max((mousePosition / containerWidth) * 100, 20), 80);
               
-              // Apply new widths
               editorPaneElement.style.flex = `0 0 ${percentage}%`;
               previewPaneElement.style.flex = `0 0 ${100 - percentage}%`;
               
-              // Update aria-valuenow attribute
               splitterElement.setAttribute('aria-valuenow', percentage);
               
-              // Save to localStorage
               localStorage.setItem('splitterPosition', percentage);
-            }
-          } catch (error) {
-            console.error('Error in mousemove handler:', error);
-            splitterIsDragging = false; // Stop dragging if there's an error
           }
-        });
+        } catch (error) {
+            splitterIsDragging = false; // Stop dragging if there's an error
+        }
+      });
         
-        // Mouse up event
         document.addEventListener('mouseup', function() {
           try {
             if (splitterIsDragging) {
               splitterIsDragging = false;
               splitterElement.classList.remove('dragging');
               
-              // Restore text selection
               document.body.style.userSelect = '';
               
-              console.log('Splitter drag ended');
-            }
-          } catch (error) {
-            console.error('Error in mouseup handler:', error);
-            // Make sure we reset the dragging state and UI regardless of errors
+          }
+        } catch (error) {
             splitterIsDragging = false;
             document.body.style.userSelect = '';
             try { splitterElement.classList.remove('dragging'); } catch (e) {}
-          }
-        });
+        }
+      });
         
-        // Keyboard navigation for splitter
         splitterElement.addEventListener('keydown', function(e) {
           try {
-            // Get the current splitter position with improved error handling
             const flexValue = editorPaneElement.style.flex || '';
             
-            // First check saved position from localStorage
             const savedPosition = localStorage.getItem('splitterPosition');
             let currentPosition;
             
             if (savedPosition) {
               currentPosition = parseFloat(savedPosition);
-            } else if (flexValue) {
-              // If no saved position, try to extract from flex value
+          } else if (flexValue) {
               const match = flexValue.match(/\d+(\.\d+)?/);
               if (match && match[0]) {
                 currentPosition = parseFloat(match[0]);
-              } else {
-                // Default if can't extract from flex either
-                currentPosition = 50;
-              }
             } else {
-              // Default if no flex value and no saved position
-              currentPosition = 50;
+                currentPosition = 50;
             }
+          } else {
+              currentPosition = 50;
+          }
             
-            // Ensure the currentPosition is valid (between 20 and 80)
             if (isNaN(currentPosition) || currentPosition < 20) {
               currentPosition = 50;
-            } else if (currentPosition > 80) {
+          } else if (currentPosition > 80) {
               currentPosition = 80;
-            }
+          }
             
             let newPosition = currentPosition;
             
-            // Step size for keyboard navigation (in percentage points)
             const STEP_SIZE = 10;
           
-          // Adjust position with keyboard:
-          // Left arrow: Decrease editor width (move splitter left)
-          // Right arrow: Increase editor width (move splitter right)
-          // Up arrow: Decrease editor width with bigger steps (move splitter left more)
-          // Down arrow: Increase editor width with bigger steps (move splitter right more)
           if (e.key === 'ArrowLeft') {
-            // Move splitter left (decrease editor width)
             newPosition = Math.max(20, currentPosition - STEP_SIZE);
             e.preventDefault();
-          } else if (e.key === 'ArrowRight') {
-            // Move splitter right (increase editor width)
+        } else if (e.key === 'ArrowRight') {
             newPosition = Math.min(80, currentPosition + STEP_SIZE);
             e.preventDefault();
-          } else if (e.key === 'ArrowUp') {
-            // Bigger movement - move splitter left (decrease editor width)
+        } else if (e.key === 'ArrowUp') {
             newPosition = Math.max(20, currentPosition - STEP_SIZE * 2);
             e.preventDefault();
-          } else if (e.key === 'ArrowDown') {
-            // Bigger movement - move splitter right (increase editor width)
+        } else if (e.key === 'ArrowDown') {
             newPosition = Math.min(80, currentPosition + STEP_SIZE * 2);
             e.preventDefault();
-          } else if (e.key === 'Home') {
-            // Move splitter to minimize editor (maximize preview area)
+        } else if (e.key === 'Home') {
             newPosition = 20;
             e.preventDefault();
-          } else if (e.key === 'End') {
-            // Move splitter to maximize editor
+        } else if (e.key === 'End') {
             newPosition = 80;
             e.preventDefault();
-          } else if (e.key === 'Enter' || e.key === ' ') {
-            // Reset to middle
+        } else if (e.key === 'Enter' || e.key === ' ') {
             newPosition = 50;
             e.preventDefault();
-          }
+        }
           
-          // Update layout if position changed
           if (newPosition !== currentPosition) {
-            // Apply new widths
             editorPaneElement.style.flex = `0 0 ${newPosition}%`;
             previewPaneElement.style.flex = `0 0 ${100 - newPosition}%`;
             
-            // Update aria-valuenow attribute
             splitterElement.setAttribute('aria-valuenow', newPosition);
             
-            // Save to localStorage
             localStorage.setItem('splitterPosition', newPosition);
             
-            // Announce change to screen readers
             document.getElementById('sr-announcements').textContent = `Editor width ${Math.round(newPosition)}%, preview width ${Math.round(100-newPosition)}%`;
-          }
-          } catch (error) {
-            console.error('Error in splitter keyboard navigation:', error);
-          }
-        });
+        }
+        } catch (error) {
+        }
+      });
         
-        // Touch events for mobile
         splitterElement.addEventListener('touchstart', function(e) {
           try {
             e.preventDefault();
             splitterIsDragging = true;
             splitterElement.classList.add('dragging');
-            console.log('Touch drag started');
-          } catch (error) {
-            console.error('Error in touchstart handler:', error);
-          }
-        });
+        } catch (error) {
+        }
+      });
         
         document.addEventListener('touchmove', function(e) {
           try {
             if (!splitterIsDragging) return;
             
-            // Use the global splitterElement
             const touch = e.touches[0];
             const containerRect = editorContainerElement.getBoundingClientRect();
             
-            // Check if we're in mobile view (width <= 768px)
             const isMobileView = window.innerWidth <= 768;
             
             if (isMobileView) {
-              // In mobile view, handle vertical dragging
               const containerHeight = containerRect.height;
               const touchPosition = touch.clientY - containerRect.top;
               
-              // Calculate percentage for editor height (constrained between 20% and 80%)
               const percentage = Math.min(Math.max((touchPosition / containerHeight) * 100, 20), 80);
               
-              // Apply new heights using flex-basis
               editorPaneElement.style.flex = `0 0 ${percentage}%`;
               previewPaneElement.style.flex = `0 0 ${100 - percentage}%`;
               
-              // Update aria-valuenow attribute
               splitterElement.setAttribute('aria-valuenow', percentage);
               
-              // Save to localStorage with a different key for mobile
               localStorage.setItem('splitterPositionMobile', percentage);
-            } else {
-              // Desktop view - horizontal dragging
+          } else {
               const containerWidth = containerRect.width;
               const touchPosition = touch.clientX - containerRect.left;
               
-              // Calculate percentage (constrained between 20% and 80%)
               const percentage = Math.min(Math.max((touchPosition / containerWidth) * 100, 20), 80);
               
-              // Apply new widths
               editorPaneElement.style.flex = `0 0 ${percentage}%`;
               previewPaneElement.style.flex = `0 0 ${100 - percentage}%`;
               
-              // Update aria-valuenow attribute
               splitterElement.setAttribute('aria-valuenow', percentage);
               
-              // Save to localStorage
               localStorage.setItem('splitterPosition', percentage);
-            }
-          } catch (error) {
-            console.error('Error in touchmove handler:', error);
-            splitterIsDragging = false; // Stop dragging if there's an error
           }
-        });
+        } catch (error) {
+            splitterIsDragging = false; // Stop dragging if there's an error
+        }
+      });
         
         document.addEventListener('touchend', function() {
           try {
             if (splitterIsDragging) {
               splitterIsDragging = false;
               splitterElement.classList.remove('dragging');
-              console.log('Touch drag ended');
-            }
-          } catch (error) {
-            console.error('Error in touchend handler:', error);
-            // Make sure we reset the dragging state regardless of errors
+          }
+        } catch (error) {
             splitterIsDragging = false;
             try { splitterElement.classList.remove('dragging'); } catch (e) {}
-          }
-        });
-      }
+        }
+      });
+    }
       
       
-      // Download HTML
       function downloadHTML() {
         const filename = filenameInput.value || 'markdown-export';
         const markdown = markdownEditor.value;
-        // Create a fresh converter to ensure clean state
         const freshConverter = new showdown.Converter({
           tables: true,
           tasklists: true,
           strikethrough: true,
           ghCodeBlocks: true,
           extensions: [footnotes]
-        });
+      });
         const html = freshConverter.makeHtml(markdown);
         
-        // Sanitize the HTML using DOMPurify before downloading
         const sanitizedHtml = DOMPurify.sanitize(html, {
           USE_PROFILES: { html: true },
           ADD_ATTR: ['target']
-        });
+      });
         
-        // Create complete HTML document with consistent light theme styling
-        // Always use light mode styling for downloaded HTML for consistency
-        const styleContent = `
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-      line-height: 1.6; 
-      max-width: 800px; 
-      margin: 0 auto; 
-      padding: 20px;
-      color: #24292e;
-      background-color: white;
-    }
-    pre { 
-      background-color: #f6f8fa; 
-      padding: 16px; 
-      overflow: auto; 
-      border-radius: 3px; 
-      border: 1px solid #e1e4e8;
-    }
-    code { 
-      border-radius: 3px;
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    }
-    :not(pre) > code {
-      background-color: rgba(27,31,35,0.05);
-      padding: 0.2em 0.4em;
-    }
-    table { 
-      border-collapse: collapse; 
-      width: 100%; 
-      margin-bottom: 16px;
-    }
-    table, th, td { 
-      border: 1px solid #dfe2e5; 
-      padding: 8px; 
-    }
-    img { 
-      max-width: 100%; 
-    }
-    blockquote { 
-      border-left: 4px solid #dfe2e5; 
-      padding-left: 16px; 
-      color: #6a737d; 
-      margin-left: 0; 
-      margin-right: 0;
-    }
-    a {
-      color: #0366d6;
-      text-decoration: underline;
-    }
-    h1, h2, h3, h4, h5, h6 {
-      margin-top: 24px;
-      margin-bottom: 16px;
-      font-weight: 600;
-      line-height: 1.25;
-    }
-    /* Footnote styles */
-    .footnote {
-      margin-top: 8px;
-      margin-bottom: 8px;
-      padding: 5px 10px;
-      font-size: 0.9em;
-      color: #6a737d;
-      background-color: rgba(0,0,0,0.02);
-      border-radius: 4px;
-    }
-    .footnote .footnote-content {
-      display: inline-block;
-      vertical-align: top;
-    }
-    .footnote .footnote-content p {
-      margin: 0;
-    }
-    .footnote .footnote-content p + p {
-      margin-top: 0.8em;
-    }
-    .footnote a {
-      text-decoration: none;
-    }
-    .footnote-ref {
-      text-decoration: none;
-      font-size: 0.75em;
-      vertical-align: super;
-      line-height: normal;
-      color: #0366d6;
-      padding: 0 1px;
-    }
-    .footnote-backref {
-      text-decoration: none;
-      font-size: 0.85em;
-      color: #0366d6;
-      margin-right: 4px;
-      font-weight: bold;
-    }
-    .footnotes-section {
-      margin-top: 40px;
-    }
-    .footnotes-section hr {
-      border: none;
-      border-top: 1px solid #dfe2e5;
-      margin: 30px 0 20px 0;
-    }
-    .footnotes-section h2 {
-      font-size: 1.2em;
-      margin-bottom: 20px;
-    }
-    .footnotes {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-`;
+        const styleContent=`body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;padding:20px;color:#24292e;background-color:white}pre{background-color:#f6f8fa;padding:16px;overflow:auto;border-radius:3px;border:1px solid #e1e4e8}code{border-radius:3px;font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace}:not(pre)>code{background-color:rgba(27,31,35,0.05);padding:0.2em 0.4em}table{border-collapse:collapse;width:100%;margin-bottom:16px}table,th,td{border:1px solid #dfe2e5;padding:8px}img{max-width:100%}blockquote{border-left:4px solid #dfe2e5;padding-left:16px;color:#6a737d;margin-left:0;margin-right:0}a{color:#0366d6;text-decoration:underline}h1,h2,h3,h4,h5,h6{margin-top:24px;margin-bottom:16px;font-weight:600;line-height:1.25}.footnote{margin-top:8px;margin-bottom:8px;padding:5px 10px;font-size:0.9em;color:#6a737d;background-color:rgba(0,0,0,0.02);border-radius:4px}.footnote .footnote-content{display:inline-block;vertical-align:top}.footnote .footnote-content p{margin:0}.footnote .footnote-content p+p{margin-top:0.8em}.footnote a{text-decoration:none}.footnote-ref{text-decoration:none;font-size:0.75em;vertical-align:super;line-height:normal;color:#0366d6;padding:0 1px}.footnote-backref{text-decoration:none;font-size:0.85em;color:#0366d6;margin-right:4px;font-weight:bold}.footnotes-section{margin-top:40px}.footnotes-section hr{border:none;border-top:1px solid #dfe2e5;margin:30px 0 20px 0}.footnotes-section h2{font-size:1.2em;margin-bottom:20px}.footnotes{display:flex;flex-direction:column;gap:5px}`;
         
         const fullHtml = `
 <!--
@@ -2084,17 +1819,15 @@ Generated content using:
         `;
         
         downloadFile(fullHtml, `${filename}.html`, 'text/html');
-      }
+    }
       
-      // Download Markdown
       function downloadMarkdown() {
         const filename = filenameInput.value || 'markdown-export';
         const markdown = markdownEditor.value;
         
         downloadFile(markdown, `${filename}.md`, 'text/markdown');
-      }
+    }
       
-      // Generic download file function
       function downloadFile(content, filename, type) {
         const blob = new Blob([content], { type: type });
         const url = URL.createObjectURL(blob);
@@ -2106,43 +1839,32 @@ Generated content using:
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-      }
+    }
       
-      // Load README.md as sample
       function loadSample() {
-        // Show loading indicator in the editor
         markdownEditor.value = "Loading README.md...";
         
-        // Fetch README.md from the repository
         fetch('./README.md')
           .then(response => {
             if (!response.ok) {
               throw new Error(`Failed to load README.md: ${response.status} ${response.statusText}`);
-            }
+          }
             return response.text();
-          })
+        })
           .then(content => {
-            // Set the content directly without adjusting indentation
-            // Showdown should handle the indentation based on its settings
             markdownEditor.value = content;
             
-            // Update the converter with the current flavor setting
             updateConverterWithCurrentFlavor();
             
-            // Update preview
             updatePreview();
-          })
+        })
           .catch(error => {
-            console.error('Error loading README.md:', error);
             
-            // Create a sample markdown that demonstrates the current flavor's style
             const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
             const isGitHubStyle = preferredFlavor === 'github';
             
-            // Create appropriate sample based on indentation style
             const createSample = () => {
               if (isGitHubStyle) {
-                // GitHub-style (2 spaces)
                 return `# Markdown Indentation Guide (GitHub-Style)
 
 ## List Indentation (2 spaces)
@@ -2169,7 +1891,6 @@ GitHub-style Markdown uses 2-space indentation for nested lists:
 ## Code Block Examples
 
 \`\`\`javascript
-// This is a fenced code block
 function example() {
   return "Hello world";
 }
@@ -2188,8 +1909,7 @@ Here is a footnote reference[^1].
   This is the second line (indented 2 spaces).
 
   This is a new paragraph in the footnote (indented 2 spaces).`;
-              } else {
-                // CommonMark-style (4 spaces)
+            } else {
                 return `# Markdown Indentation Guide (CommonMark-Style)
 
 ## List Indentation (4 spaces)
@@ -2216,7 +1936,6 @@ CommonMark-style Markdown uses 4-space indentation for nested lists:
 ## Code Block Examples
 
 \`\`\`javascript
-// This is a fenced code block
 function example() {
   return "Hello world";
 }
@@ -2235,192 +1954,171 @@ Here is a footnote reference[^1].
     This is the second line (indented 4 spaces).
     
     This is a new paragraph in the footnote (indented 4 spaces).`;
-              }
-            };
+            }
+          };
             
-            // Set the editor content to our dynamically created sample
             markdownEditor.value = createSample();
             updatePreview();
-          });
-      }
+        });
+    }
       
-      // Update the converter with the current flavor settings
       function updateConverterWithCurrentFlavor() {
-        // Get the current flavor preference from localStorage or default to 'github'
         const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
         
-        // Recreate the converter with appropriate settings
         const newConverter = new showdown.Converter({
           extensions: [footnotes({indentSpaces: preferredFlavor === 'github' ? 2 : 4})]
-        });
+      });
         
-        // Set the flavor directly from localStorage
         newConverter.setFlavor(preferredFlavor);
         
-        // Replace the global converter instance
         converter = newConverter;
-      }
+    }
       
-      // Function to adjust markdown indentation based on flavor preference
       function adjustMarkdownIndentation(content, flavor) {
-        // Determine indentation spaces based on flavor
         const indentSpaces = flavor === 'github' ? 2 : 4;
-        // Process content line by line
         const lines = content.split('\n');
         const result = [];
         
-        // Pattern to detect indented lines
         const indentPattern = /^(\s+)(.*)$/;
         
-        // Track code block context
         let inCodeBlock = false;
         
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           
-          // Check for code block markers
           if (line.trim().startsWith('```')) {
             inCodeBlock = !inCodeBlock;
             result.push(line); // Keep code block markers unchanged
             continue;
-          }
+        }
           
-          // If we're in a fenced code block, don't adjust indentation
           if (inCodeBlock) {
             result.push(line);
             continue;
-          }
+        }
           
           const match = line.match(indentPattern);
           
           if (match) {
-            // Line has indentation
             const currentIndent = match[1]; 
             const content = match[2];
             
-            // Simple approach:
-            // Count spaces and divide by 2 to determine levels
-            // This works consistently with both 2-space and 4-space preferences
             const spaceCount = currentIndent.length;
             
-            // For every 2 spaces in the original, that's one level
-            // This works for both 2-space and 4-space content
             const indentLevel = Math.ceil(spaceCount / 2);
             
-            // Apply user's preferred indentation
             const newIndent = ' '.repeat(indentSpaces * indentLevel);
             result.push(newIndent + content);
-          } else {
-            // Line has no indentation
+        } else {
             result.push(line);
-          }
         }
+      }
         
         return result.join('\n');
-      }
+    }
       
-      // Toggle dark/light theme and save preference
       function toggleTheme() {
         const isDarkMode = document.body.classList.toggle('dark-mode');
-        // Save preference - only save 'false' when in light mode
         localStorage.setItem('darkMode', isDarkMode);
         themeSwitch.checked = isDarkMode;
-      }
+    }
       
-      // Modal functions with accessibility support
       let lastFocusedElement;
       const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
       
       function openModal() {
-        // Store the element that had focus before opening modal
         lastFocusedElement = document.activeElement;
         
-        // Display the modal
         infoModal.style.display = 'block';
         
-        // Announce to screen readers
         document.getElementById('sr-announcements').textContent = 'Information dialog opened';
         
-        // Prevent scrolling on the background when modal is open
         document.body.style.overflow = 'hidden';
         
-        // Find all focusable elements within the modal
-        const focusableElements = infoModal.querySelectorAll(focusableSelectors);
-        const firstFocusableElement = focusableElements[0];
+        const modalBody = document.getElementById('modal-description');
         
-        // Move focus into the modal
-        setTimeout(() => {
-          firstFocusableElement.focus();
-        }, 50);
-      }
+        const focusFirstElement = () => {
+          const focusableElements = infoModal.querySelectorAll(focusableSelectors);
+          const firstFocusableElement = focusableElements[0];
+          if (firstFocusableElement) {
+            setTimeout(() => firstFocusableElement.focus(), 50);
+          }
+        };
+        
+        fetch('./help.html')
+          .then(response => {
+            if (!response.ok) throw new Error('Help file not found');
+            return response.text();
+          })
+          .then(helpContent => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(helpContent, 'text/html');
+            const bodyContent = doc.body.innerHTML;
+            modalBody.innerHTML = bodyContent;
+            focusFirstElement();
+          })
+          .catch(() => {
+            modalBody.innerHTML = `
+              <p>Real-time Markdown editor with HTML preview. Works offline in any modern browser.</p>
+              <p><strong>Shortcuts:</strong> Alt+E (editor), Alt+P (preview), Alt+C (copy), Alt+D (download), Alt+T (theme), Alt+H (help)</p>
+              <p><strong>Footnotes:</strong> Use [^1] syntax. Set indentation in toolbar dropdown.</p>
+              <p>MIT License © 2025 Stephen Alexander. Uses Showdown & DOMPurify libraries.</p>
+              <p><strong>More help:</strong> <a href="./help.html" target="_blank">help.html</a></p>
+            `;
+            focusFirstElement();
+          });
+    }
       
       function closeModal() {
-        // Hide the modal
         infoModal.style.display = 'none';
         
-        // Announce to screen readers
         document.getElementById('sr-announcements').textContent = 'Information dialog closed';
         
-        // Re-enable scrolling
         document.body.style.overflow = '';
         
-        // Restore focus to the element that had it before the modal was opened
         if (lastFocusedElement) {
           setTimeout(() => {
             lastFocusedElement.focus();
-          }, 50);
-        }
+        }, 50);
       }
+    }
       
-      // Trap focus within the modal when it's open
       function trapTabKey(e) {
-        // Only execute if the modal is visible
         if (infoModal.style.display !== 'block') return;
         
-        // Find all focusable elements in the modal
         const focusableElements = infoModal.querySelectorAll(focusableSelectors);
         const firstFocusableElement = focusableElements[0];
         const lastFocusableElement = focusableElements[focusableElements.length - 1];
         
-        // Check for Tab key press
         if (e.key === 'Tab') {
-          // If shift + tab and focus is on first element, move to last element
           if (e.shiftKey && document.activeElement === firstFocusableElement) {
             e.preventDefault();
             lastFocusableElement.focus();
-          }
-          // If tab and focus is on last element, move to first element
+        }
           else if (!e.shiftKey && document.activeElement === lastFocusableElement) {
             e.preventDefault();
             firstFocusableElement.focus();
-          }
         }
       }
+    }
       
-      // Close modal if clicking outside of it
       window.addEventListener('click', (e) => {
         if (e.target === infoModal) {
           closeModal();
-        }
-      });
+      }
+    });
       
-      // Handle keyboard events for application-wide shortcuts and accessibility
       document.addEventListener('keydown', (e) => {
-        // Handle modal keyboard navigation
         if (infoModal.style.display === 'block') {
-          // Close modal when ESC key is pressed
           if (e.key === 'Escape') {
             closeModal();
-          }
+        }
           
-          // Trap focus within modal using Tab key
           trapTabKey(e);
           
-          // Don't process other shortcuts when modal is open
           return;
-        }
+      }
         
-        // Process global keyboard shortcuts
         Object.values(keyboardShortcuts).forEach(shortcut => {
           if (e.key.toLowerCase() === shortcut.key.toLowerCase() && 
               ((shortcut.modifier === 'Alt' && e.altKey) ||
@@ -2429,20 +2127,16 @@ Here is a footnote reference[^1].
             e.preventDefault();
             shortcut.action();
             
-            // Announce the action to screen readers
             document.getElementById('sr-announcements').textContent = shortcut.description + ' activated';
-          }
-        });
+        }
       });
+    });
       
-      // Event listeners
       markdownEditor.addEventListener('input', updatePreview);
       printBtn.addEventListener('click', () => { 
-        // Always update the preview before printing
         updatePreview();
-        // Slight delay to ensure preview is updated before print dialog
         setTimeout(() => window.print(), 100);
-      });
+    });
       copyBtn.addEventListener('click', () => { copyHtml(); });
       clearBtn.addEventListener('click', () => { markdownEditor.value = ''; updatePreview(); });
       sampleBtn.addEventListener('click', loadSample);
@@ -2452,16 +2146,12 @@ Here is a footnote reference[^1].
       infoBtn.addEventListener('click', openModal);
       closeModalBtn.addEventListener('click', closeModal);
       
-      // Function to update the documentation examples based on current flavor
       function updateIndentationExample() {
-        // Get the current flavor preference
         const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
         const isGitHubStyle = preferredFlavor === 'github';
         
-        // Determine the indentation spacing based on flavor directly from the flavor
         const spacesNum = isGitHubStyle ? 2 : 4;
         
-        // Update the displayed indent values
         const indentDisplays = [
           document.getElementById('indent-setting-display'),
           document.getElementById('list-indent-display'),
@@ -2471,26 +2161,23 @@ Here is a footnote reference[^1].
         indentDisplays.forEach(display => {
           if (display) {
             display.textContent = spacesNum;
-          }
-        });
+        }
+      });
         
-        // Update flavor display
         const flavorDisplay = document.getElementById('flavor-display');
         if (flavorDisplay) {
           flavorDisplay.textContent = isGitHubStyle ? 'GitHub' : 'CommonMark';
-        }
+      }
         
-        // Update indentation note based on flavor
         const indentationNote = document.getElementById('indentation-note');
         if (indentationNote) {
           if (isGitHubStyle) {
             indentationNote.innerHTML = '<strong>Note:</strong> GitHub Flavored Markdown uses 2-space indentation for nested lists. First level items have no indentation, second level items are indented by 2-3 spaces, and third level items by 4-6 spaces.';
-          } else {
+        } else {
             indentationNote.innerHTML = '<strong>Note:</strong> CommonMark uses 4-space indentation for nested lists. First level items have no indentation, second level items are indented by 4 spaces, and third level items by 8 spaces.';
-          }
         }
+      }
         
-        // Update the footnote example text with proper indentation
         const footnoteExample = document.getElementById('footnote-indent-example');
         if (footnoteExample) {
           const indent = ' '.repeat(spacesNum);
@@ -2499,13 +2186,11 @@ Here is a footnote reference[^1].
 ${indent}
 ${indent}Second paragraph of the footnote (indented ${spacesNum} spaces).
           `;
-        }
+      }
         
-        // Update the list example text with appropriate indentation for selected style
         const listExample = document.getElementById('list-indent-example');
         if (listExample) {
           if (isGitHubStyle) {
-            // GitHub style uses 3 spaces for numbered list indentation
             const level1Indent = '   '; // 3 spaces
             const level2Indent = '      '; // 6 spaces
             
@@ -2517,8 +2202,7 @@ ${level1Indent}- Second level item (indented 3 spaces)
 ${level2Indent}* Third level item (indented 6 spaces)
 ${level2Indent}* Third level item (indented 6 spaces)
             `;
-          } else {
-            // CommonMark style uses 4 spaces per level
+        } else {
             const level1Indent = '    '; // 4 spaces
             const level2Indent = '        '; // 8 spaces
             
@@ -2530,10 +2214,9 @@ ${level1Indent}- Second level item (indented 4 spaces)
 ${level2Indent}* Third level item (indented 8 spaces)
 ${level2Indent}* Third level item (indented 8 spaces)
             `;
-          }
         }
+      }
         
-        // Update the code block example with proper indentation
         const codeExample = document.getElementById('code-indent-example');
         if (codeExample) {
           const indent = ' '.repeat(spacesNum);
@@ -2546,28 +2229,21 @@ ${indent}It's indented with ${spacesNum} spaces.
   
 Normal text again.
           `;
-        }
       }
+    }
       
-      // Handle flavor preference changes
       flavorSelector.addEventListener('change', function() {
-        // Store the selected flavor preference
         const selectedFlavor = flavorSelector.value;
         localStorage.setItem('markdownFlavor', selectedFlavor);
         
-        // Get the corresponding indentation size based on flavor
         const indentSize = selectedFlavor === 'github' ? 2 : 4;
         
-        // Update the converter with the new flavor settings
         updateConverterWithCurrentFlavor();
         
-        // Update the preview to reflect the new flavor setting
         updatePreview();
         
-        // Update the documentation examples
         updateIndentationExample();
         
-        // Show a notification about the changed setting
         const actionBar = document.querySelector('div.action-bar');
         if (actionBar) {
           const message = document.createElement('button');
@@ -2581,61 +2257,48 @@ Normal text again.
           
           setTimeout(() => {
             actionBar.removeChild(message);
-          }, 2000);
-        }
-      });
+        }, 2000);
+      }
+    });
       
       
-      // Make sure our converter is properly initialized with the current flavor
       updateConverterWithCurrentFlavor();
       
-      // Initialize preview with any existing content
       updatePreview();
       
-      // Initialize the documentation examples with the current flavor
       updateIndentationExample();
       
-      // Check for stored markdown content
       const storedMarkdown = localStorage.getItem('markdownContent');
       if (storedMarkdown) {
         markdownEditor.value = storedMarkdown;
         updatePreview();
-      }
+    }
       
-      // Save markdown content to local storage when typing
       markdownEditor.addEventListener('input', () => {
         localStorage.setItem('markdownContent', markdownEditor.value);
         
-        // Update preview if in mobile view - keeps preview current even while editing
         if (window.innerWidth <= 768) {
           updatePreview();
-        }
-      });
+      }
+    });
       
-      // Force an initial position for the splitter to ensure it's properly set
       if (!localStorage.getItem('splitterPosition')) {
         localStorage.setItem('splitterPosition', '50');
-      }
+    }
       
-      // Initialize the resizable panels
       initResizablePanels();
       
-      // Initialize mobile tabs
       initMobileTabs();
-    });
+  });
     const copyHtml = () => {
   try {
-    // Use the persistent clean iframe that's kept in sync with the preview
     const cleanCopyIframe = document.getElementById('clean-copy-iframe');
     const iframeDoc = cleanCopyIframe.contentDocument || cleanCopyIframe.contentWindow.document;
     
-    // Target the content container
     const contentElement = iframeDoc.getElementById('copy-content');
     
-    // We'll temporarily remove the inert attribute for the copy operation
     cleanCopyIframe.removeAttribute('inert');
     
-    // Create a selection in the iframe
     const range = iframeDoc.createRange();
     range.selectNodeContents(contentElement);
     
@@ -2643,51 +2306,41 @@ Normal text again.
     selection.removeAllRanges();
     selection.addRange(range);
     
-    // Execute the copy command in the iframe's context
     const successful = iframeDoc.execCommand('copy');
     
-    // Clean up selection (but keep the iframe)
     selection.removeAllRanges();
     
-    // Restore the inert attribute
     cleanCopyIframe.setAttribute('inert', '');
     
-    // Show success message if copy was successful
     if (successful) {
-      // Find the action bar
       const actionBar = document.querySelector('div.action-bar');
       
-      // Create a temporary message to show the user
       const message = document.createElement('button');
       message.textContent = 'Content copied!';
       message.style.backgroundColor = '#4CAF50';
       message.style.color = 'white';
       message.classList.add('button');
       
-      // Append to action bar
       if (actionBar) {
         actionBar.appendChild(message);
         
-        // Remove the message after 2 seconds
         setTimeout(() => {
           actionBar.removeChild(message);
-        }, 2000);
-      }
-    } else {
-      console.error("Copy command failed");
+      }, 2000);
     }
+  } else {
+}
     
     return successful;
-  } catch (err) {
-    console.error('Error copying text: ', err);
+} catch (err) {
     return false;
-  }
+}
 }
 
   </script>
 
   <!-- Modal -->
-  <aside id="info-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
+  <aside id="info-modal" class="modal" role="dialog" aria-modal="true"  >
     <!-- Invisible focus boundary at the top of the modal -->
     <div tabindex="0" class="focus-boundary" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;"></div>
     <div class="modal-content">
@@ -2695,121 +2348,13 @@ Normal text again.
         <h2 id="modal-title">Markdown Converter</h2>
       </div>
       <div class="modal-body" id="modal-description">
-        <p>This app allows you to write Markdown and see it rendered as HTML in real-time. It's perfect for drafting content, documentation, README files, or any text that benefits from formatting.</p>
-        <p>This is a self-contained application that works offline in any modern browser.</p>
-        <p>Key features:</p>
-        <ul>
-          <li>Real-time preview as you type</li>
-          <li>Dark/light mode toggle</li>
-          <li>Export as HTML or Markdown</li>
-          <li>Copy formatted HTML to clipboard</li>
-          <li>Print directly from the preview</li>
-          <li>Footnotes support</li>
-          <li>Works offline in any modern browser</li>
-          <li>Installable as a Progressive Web App</li>
-        </ul>
-        <p>Simply start typing in the left panel to see your formatted content on the right.</p>
-        
-        <h3>Installation & Usage</h3>
-        <p>You can use this app in several ways:</p>
-        <ol>
-          <li>Use directly in your browser at the current URL</li>
-          <li>Install as a PWA by clicking the install button in your browser's address bar or menu</li>
-          <li>Download the HTML file and related assets to use locally</li>
-          <li>Host on your own server</li>
-        </ol>
-        <p>Once installed as a PWA, the app will work offline and can be launched from your device's home screen or app drawer.</p>
-        
-        <h3>Keyboard Shortcuts</h3>
-        <p>This application supports the following keyboard shortcuts:</p>
-        <ul>
-          <li><kbd>Alt</kbd> + <kbd>E</kbd>: Focus the editor</li>
-          <li><kbd>Alt</kbd> + <kbd>P</kbd>: Focus the preview</li>
-          <li><kbd>Alt</kbd> + <kbd>S</kbd>: Focus the splitter</li>
-          <li><kbd>Alt</kbd> + <kbd>C</kbd>: Copy HTML to clipboard</li>
-          <li><kbd>Alt</kbd> + <kbd>D</kbd>: Download HTML</li>
-          <li><kbd>Alt</kbd> + <kbd>X</kbd>: Clear editor content</li>
-          <li><kbd>Alt</kbd> + <kbd>R</kbd>: Print document</li>
-          <li><kbd>Alt</kbd> + <kbd>H</kbd>: Open this help dialog</li>
-          <li><kbd>Alt</kbd> + <kbd>T</kbd>: Toggle light/dark theme</li>
-        </ul>
-        
-        <h4>Splitter Controls</h4>
-        <p>When the splitter is focused (by clicking or tabbing to it, or selecting with <kbd>Alt</kbd> + <kbd>S</kbd>):</p>
-        <ul>
-          <li><kbd>←</kbd>: Decrease editor width (move splitter left)</li>
-          <li><kbd>→</kbd>: Increase editor width (move splitter right)</li>
-          <li><kbd>↑</kbd>: Decrease editor width with bigger steps (move splitter left more)</li>
-          <li><kbd>↓</kbd>: Increase editor width with bigger steps (move splitter right more)</li>
-          <li><kbd>Home</kbd>: Minimize editor (maximize preview area)</li>
-          <li><kbd>End</kbd>: Maximize editor area</li>
-          <li><kbd>Space</kbd> or <kbd>Enter</kbd>: Reset splitter to center (50/50)</li>
-        </ul>
-        
-        <h3>Using Footnotes</h3>
-        <p>You can add footnotes to your document with the following syntax:</p>
-        <pre>
-Here is a sentence with a footnote reference[^1].
-
-[^1]: This is the footnote content.
-        </pre>
-        <p>For multi-paragraph footnotes, indent subsequent paragraphs with your selected indentation spacing (<span id="indent-setting-display">2</span> spaces currently):</p>
-        <pre id="footnote-indent-example">
-[^2]: First paragraph of the footnote.
-  
-  Second paragraph of the footnote.
-        </pre>
-        <p>You can select your preferred Markdown flavor using the "Flavor" dropdown in the toolbar. This setting affects all indentation-sensitive markdown elements including footnotes, lists, and code blocks:</p>
-        <ul>
-          <li><strong>GitHub</strong> - Uses GitHub Flavored Markdown with 2-space indentation for lists</li>
-          <li><strong>CommonMark</strong> - Uses CommonMark/standard Markdown with 4-space indentation for lists</li>
-        </ul>
-        <p>Footnotes will be collected and displayed at the bottom of the document.</p>
-        
-        <h3>Nested Lists</h3>
-        <p>This app adjusts to your selected Markdown flavor (<span id="flavor-display">GitHub</span>):</p>
-        <pre id="list-indent-example">
-1. First level item
-2. First level item
-   - Second level item (indented 3 spaces)
-   - Second level item (indented 3 spaces)
-      * Third level item (indented 6 spaces)
-      * Third level item (indented 6 spaces)
-        </pre>
-        <p id="indentation-note"><strong>Note:</strong> GitHub-style Markdown uses 2-space indentation for nested lists. First level items have no indentation, second level items are indented by 2-3 spaces, and third level items by 4-6 spaces.</p>
-        
-        <h3>Code Blocks</h3>
-        <p>Regular code blocks can be created with indentation (<span id="code-indent-display">2</span> spaces):</p>
-        <pre id="code-indent-example">
-Normal text.
-
-  This is a code block.
-  It's indented with spaces.
-  
-Normal text again.
-        </pre>
-        <p>You can also use triple backticks for code blocks, which don't require indentation:</p>
-        <pre>
-```javascript
-// This is a code block with language specification
-function example() {
-  return "Hello world";
-}
-```
-        </pre>
-        
-        <h3>License</h3>
-        <p>Markdown Converter is released under the MIT License.</p>
-        <p>Copyright (c) 2025 Stephen Alexander</p>
-        <p>Uses the following libraries:</p>
-        <ul>
-          <li><a href="https://github.com/showdownjs/showdown" target="_blank">Showdown</a> (v2.1.0) - MIT License - For Markdown conversion</li>
-          <li><a href="https://github.com/cure53/DOMPurify" target="_blank">DOMPurify</a> (v3.2.5) - Dual-licensed under Apache License 2.0 and Mozilla Public License 2.0 - For HTML sanitization</li>
-        </ul>
-        <p>This software contains third-party components with separate copyright notices and license terms. Your use of these components is subject to the terms and conditions of their respective licenses.</p>
+        <p>Real-time Markdown editor with HTML preview. Works offline in any modern browser.</p>
+        <p><strong>Shortcuts:</strong> Alt+E (editor), Alt+P (preview), Alt+C (copy), Alt+D (download), Alt+T (theme), Alt+H (help)</p>
+        <p><strong>Footnotes:</strong> Use [^1] syntax. Set indentation in toolbar dropdown.</p>
+        <p>MIT License © 2025 Stephen Alexander. Uses Showdown & DOMPurify libraries.</p>
       </div>
       <div class="modal-footer">
-        <button id="close-modal-btn" class="button" aria-label="Close information dialog">✅</button>
+        <button id="close-modal-btn" class="button" >✅</button>
       </div>
     </div>
     <!-- Invisible focus boundary at the bottom of the modal -->
