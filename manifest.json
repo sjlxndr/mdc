@@ -2,7 +2,7 @@
   "name": "Markdown Converter",
   "short_name": "MDC",
   "description": "A browser-based Markdown editor with HTML conversion and live preview",
-  "start_url": "/mdc.html",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#243043",
   "theme_color": "#243043",

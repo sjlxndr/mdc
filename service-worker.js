@@ -7,11 +7,13 @@ const CACHE_KEY = APP_PREFIX + VERSION;
 // Assets to cache immediately on service worker installation
 const CORE_ASSETS = [
   './',
-  './mdc.html',
+  './index.html',
+  './help.html',
   './manifest.json',
   './icons/icon-192x192.svg',
   './icons/icon-512x512.svg',
-  'https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.5/purify.min.js'
 ];
 
 // Additional assets to cache as they're requested
