@@ -40,6 +40,7 @@ function footnotes(options) {
  {
       type: 'lang',
       filter: function(text) {
+        footnoteMap = {};
         var codeBlocks = [];
         var processedText = text.replace(/```[\s\S]*?```|`[^`]*`/g, function(match) {
           codeBlocks.push(match);
@@ -1864,97 +1865,36 @@ Generated content using:
             const isGitHubStyle = preferredFlavor === 'github';
             
             const createSample = () => {
-              if (isGitHubStyle) {
-                return `# Markdown Indentation Guide (GitHub-Style)
+              return `# Markdown Converter Demo
 
-## List Indentation (2 spaces)
+Welcome! This is a **live preview** of your Markdown.
 
-GitHub-style Markdown uses 2-space indentation for nested lists:
+## Quick Examples
 
-- First level item
-- First level item
-  - Second level item (indented 2 spaces)
-  - Second level item (indented 2 spaces)
-    * Third level item (indented 4 spaces)
-    * Third level item (indented 4 spaces)
-- Back to first level
+- **Bold** and *italic* text
+- [Links](https://example.com) and inline \`code\`
 
-## Numbered Lists
+### Lists
+1. Numbered lists
+2. Work great
+   - Nested items too
+   - With proper indentation
 
-1. First level item
-2. First level item
-   1. Second level item (indented 3 spaces)
-   2. Second level item (indented 3 spaces)
-      1. Third level item (indented 6 spaces)
-3. Back to first level
-
-## Code Block Examples
-
+### Code Block
 \`\`\`javascript
-function example() {
-  return "Hello world";
+function hello() {
+  return "Hello, world!";
 }
 \`\`\`
 
-Indented code block (indented 2 spaces):
+### Footnotes
+This has a footnote[^1].
 
-  This is an indented code block.
-  It uses exactly 2 spaces.
+[^1]: Footnotes appear at the bottom.
 
-## Footnotes Example
+---
 
-Here is a footnote reference[^1].
-
-[^1]: This is the first footnote.
-  This is the second line (indented 2 spaces).
-
-  This is a new paragraph in the footnote (indented 2 spaces).`;
-            } else {
-                return `# Markdown Indentation Guide (CommonMark-Style)
-
-## List Indentation (4 spaces)
-
-CommonMark-style Markdown uses 4-space indentation for nested lists:
-
-- First level item
-- First level item
-    - Second level item (indented 4 spaces)
-    - Second level item (indented 4 spaces)
-        * Third level item (indented 8 spaces)
-        * Third level item (indented 8 spaces)
-- Back to first level
-
-## Numbered Lists
-
-1. First level item
-2. First level item
-    1. Second level item (indented 4 spaces)
-    2. Second level item (indented 4 spaces)
-        1. Third level item (indented 8 spaces)
-3. Back to first level
-
-## Code Block Examples
-
-\`\`\`javascript
-function example() {
-  return "Hello world";
-}
-\`\`\`
-
-Indented code block (indented 4 spaces):
-
-    This is an indented code block.
-    It uses exactly 4 spaces.
-
-## Footnotes Example
-
-Here is a footnote reference[^1].
-
-[^1]: This is the first footnote.
-    This is the second line (indented 4 spaces).
-    
-    This is a new paragraph in the footnote (indented 4 spaces).`;
-            }
+**💡 Tip:** Click the **❓** button for complete documentation and examples!`;
           };
             
             markdownEditor.value = createSample();
