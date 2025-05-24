@@ -1779,13 +1779,15 @@ function footnotes(options) {
       function downloadHTML() {
         const filename = filenameInput.value || 'markdown-export';
         const markdown = markdownEditor.value;
+        const preferredFlavor = localStorage.getItem('markdownFlavor') || 'github';
         const freshConverter = new showdown.Converter({
           tables: true,
           tasklists: true,
           strikethrough: true,
           ghCodeBlocks: true,
-          extensions: [footnotes]
+          extensions: [footnotes({indentSpaces: preferredFlavor === 'github' ? 2 : 4})]
       });
+        freshConverter.setFlavor(preferredFlavor);
         const html = freshConverter.makeHtml(markdown);
         
         const sanitizedHtml = DOMPurify.sanitize(html, {
